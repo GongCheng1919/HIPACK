@@ -1,2 +1,4 @@
 # HIPACK
-HiPACK is an efficent accleration library for sub-byte Neural Network Computation
+HiPACK is an efficient acceleration library for sub-byte Neural Network Computation.
+HiPACK follows the theoretical approach of adopting multiplication for low-bitwidth convolution and develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with SIMD optimizations. 
+It first identifies the inevitable data dependencies of the multiply-to-convolution. Then decoupling the multiplication with unpacking, followed by a series of optimization techniques developed to maximize the data reuse and processing efficiency.  The synergistic combination of the above methods is thoroughly evaluated with various CNN models on ARM processors. Experimental results demonstrate $4\times$ performance improvements compared to existing approaches, enabling efficient execution of low-bitwidth DNNs on resource-constrained ARM devices.
