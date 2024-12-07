@@ -1,6 +1,6 @@
 #include "base.h"
 
-void hipack_conv2d(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float *output_ptr,
+void hipack_conv2d(const int *inp_ptr, const int *weight_ptr, float *output_ptr,
 				   int N, int Ci, int H, int W, int Co, int K, int Ho, int Wo, int padding = 0,
 				   int a_bit = 4, int w_bit = 2, int ar_bit = 32, int wr_bit = 32,
 				   int stride = 1, int dilation = 1)
@@ -295,7 +295,7 @@ void hipack_conv2d(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float *o
 	std::free(packed_inputs);
 }
 
-void hipack_conv2d_v2(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float *output_ptr,
+void hipack_conv2d_v2(const int *inp_ptr, const int *weight_ptr, float *output_ptr,
 					  int N, int Ci, int H, int W, int Co, int K, int Ho, int Wo, int padding = 0,
 					  int a_bit = 4, int w_bit = 2, int ar_bit = 32, int wr_bit = 32,
 					  int stride = 1, int dilation = 1)
@@ -589,7 +589,7 @@ void hipack_conv2d_v2(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float
 	std::free(packed_inputs);
 }
 
-void hipack_conv2d_v3(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float *output_ptr,
+void hipack_conv2d_v3(const int *inp_ptr, const int *weight_ptr, float *output_ptr,
 					  int N, int Ci, int H, int W, int Co, int K, int Ho, int Wo, int padding = 0,
 					  int a_bit = 4, int w_bit = 2, int ar_bit = 32, int wr_bit = 32,
 					  int stride = 1, int dilation = 1)
@@ -605,7 +605,7 @@ void hipack_conv2d_v3(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float
 	int micro_iter_num = min(Ci, pow(2, guard_bit)); // 256;
 
 	bool accelerate_with_minor_error = true;
-	bool accelerate_with_major_error = false;
+	bool accelerate_with_major_error = false; // 由于这个方法会导致大量的计算错误，因此不使用
 	if (accelerate_with_minor_error)
 	{
 		guard_bit = 13;
@@ -634,7 +634,6 @@ void hipack_conv2d_v3(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float
 		max_acc_3_w_mul_a -= 1;
 	}
 	int micro_u8_iter_num = min(micro_iter_num, 2 * pow(2, exbits + (guard_bit - max_acc_3_w_mul_a))); // uint8缓存n次中间结果
-
 	// 每个weight压缩到uint8，三个weight存储到uint32,并将weight的元素进行顺序存储
 	int *packed_weights;
 	posix_memalign((void **)&packed_weights, align_bits, (Co / regW + 1) * regW * K * Ci * sizeof(int));
@@ -737,11 +736,21 @@ void hipack_conv2d_v3(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float
 		}
 	}
 
-	uint64_t mask = ((1ll << guard_bit) - 1);
-	uint64_t low_mask = (mask << (guard_bit)) | (mask << (3 * guard_bit));
-	uint64_t high_mask = mask | (mask << (2 * guard_bit)) | (mask << (4 * guard_bit));
-	uint64x2_t low_maskx2 = {low_mask, low_mask};
-	uint64x2_t high_maskx2 = {high_mask, high_mask};
+	// uint64_t mask = ((1ll << guard_bit) - 1);
+	// uint64_t low_mask = (mask << (guard_bit)) | (mask << (3 * guard_bit));
+	// uint64_t high_mask = mask | (mask << (2 * guard_bit)) | (mask << (4 * guard_bit));
+	// uint64x2_t low_maskx2 = {low_mask, low_mask};
+	// uint64x2_t high_maskx2 = {high_mask, high_mask};
+	uint32_t half_guard_bit = guard_bit / 2;				  // 注意，该mask会掩盖掉低guard_bit / 2位，只保留高位
+	uint32_t low_half_guard_bit = guard_bit - half_guard_bit; // 注意low_mask是掩盖掉高guard_bit - half_guard_bit位，只保存低guard_bit / 2位，所以掩码得换
+	uint64_t low_mask_dic = (((1ll << half_guard_bit) - 1));
+	// printf("low_mask_dic:%llx\n", low_mask_dic);
+	uint64_t high_mask_dic = (((1ll << low_half_guard_bit) - 1) << half_guard_bit);
+	// printf("high_mask_dic:%llx\n", high_mask_dic);
+	uint64_t low_mask_dic_vec = low_mask_dic | (low_mask_dic << (guard_bit)) | (low_mask_dic << (2 * guard_bit)) | (low_mask_dic << (3 * guard_bit)) | (low_mask_dic << (4 * guard_bit));
+	uint64_t high_mask_dic_vec = high_mask_dic | (high_mask_dic << (guard_bit)) | (high_mask_dic << (2 * guard_bit)) | (high_mask_dic << (3 * guard_bit)) | (high_mask_dic << (4 * guard_bit));
+	uint64x2_t low_mask_dic_vecx2 = {low_mask_dic_vec, low_mask_dic_vec};
+	uint64x2_t high_mask_dic_vecx2 = {high_mask_dic_vec, high_mask_dic_vec};
 
 // Test_accumlate_uint64x2x2_to_8xfloat32_nbits();
 // exit(1);
@@ -873,10 +882,21 @@ void hipack_conv2d_v3(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float
 											// AddFloat4(&output_ptr[output_idx+4], high_output);
 											// accumlate_uint64x2_to_8xfloat32_nbits(micro_u8_output_cache[cache_indx],&output_ptr[output_idx], guard_bit);
 											// 这一步缓存在W6A6条件下提升了大约1倍的计算性能：4G->11G
+											// DIC 累加低位到cache
 											dual_local_accumulator[cache_indx].val[0] = vaddq_u64(dual_local_accumulator[cache_indx].val[0],
-																								  vandq_u64(micro_u8_output_cache[cache_indx], high_maskx2));
+																								  vandq_u64(micro_u8_output_cache[cache_indx], low_mask_dic_vecx2));
+											// 测试dual_local_accumulator[cache_indx].val[0]的值
+											// uint64_t test[2];
+											// vst1q_u64(test, dual_local_accumulator[cache_indx].val[0]);
+											// std::cout << "test:" << test[0] << "," << test[1] << std::endl;
 											dual_local_accumulator[cache_indx].val[1] = vaddq_u64(dual_local_accumulator[cache_indx].val[1],
-																								  vandq_u64(micro_u8_output_cache[cache_indx], low_maskx2));
+																								  vshrq_n_u64(
+																									  vandq_u64(micro_u8_output_cache[cache_indx], high_mask_dic_vecx2),
+																									  half_guard_bit));
+											// 测试dual_local_accumulator[cache_indx].val[1]的值
+											// vst1q_u64(test, dual_local_accumulator[cache_indx].val[1]);
+											// std::cout << "test:" << test[0] << "," << test[1] << std::endl;
+											// exit;
 										}
 									}
 								}
@@ -897,7 +917,7 @@ void hipack_conv2d_v3(const uint32_t *inp_ptr, const uint32_t *weight_ptr, float
 										// AddFloat4(&output_ptr[output_idx+4], high_output);
 										// float32_4* target_vec = output_cache_vec+(yy)*regA*2+zz/TN*2;
 										// accumlate_uint16x8_to_2float32x4(micro_u16_output_cache[cache_indx],target_vec);
-										accumlate_uint64x2x2_to_8xfloat32_nbits(dual_local_accumulator[cache_indx], &output_ptr[output_idx], guard_bit);
+										accumlate_uint64x2x2_to_8xfloat32_nbits_DIC(dual_local_accumulator[cache_indx], &output_ptr[output_idx], guard_bit);
 									}
 								}
 							}

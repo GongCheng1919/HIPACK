@@ -324,6 +324,116 @@ void Test_accumlate_uint64x2x2_to_8xfloat32_nbits()
 	accumlate_uint64x2x2_to_8xfloat32_nbits(input, output, guard_bit, false);
 }
 
+/**
+ * @brief 这个函数实现DIC，将两个uint64x2x2_t中的低位和高位分别累加到8个float32中（带位数）
+ *
+ * 将给定的 uint64x2x2_t 类型的输入进行累加，并将结果存储到输出指针指向的 float 数组中。
+ * 输入由两个 uint64x2_t 组成，每个 uint64x2_t 包含两个uint64_t，每个uint64_t包含五个结果，每个结果的位宽为 guard_bit。
+ * 在两个uint64x2x2_t的每一个uint64x2_t数据中，总共存储了10个位宽为guard_bit的整型值，其中第一个uint64x2_t存储的是10个完整整型值的低位，第二个存储的是高位，比低位高出guard_bit//2这么多位。
+ * 输出为 8 个 float 类型的数值，用于存储累加结果。
+ * 在本函数中，我们需要将10个低位和10个高位分别取出来，然后将第4个和第6个累加为一个，第5和第7个累加为一个，然后总共累加到8个float32中，具体算法如下：
+ * f[0] = u64x2[0][0]+(u64x2[1][0]<<(guard_bit//2))
+ * f[1] = u64x2[0][1]+(u64x2[1][1]<<(guard_bit//2))
+ * f[2] = u64x2[0][2]+(u64x2[1][2]<<(guard_bit//2))
+ * f[3] = u64x2[0][3]+(u64x2[1][3]<<(guard_bit//2)) + u64x2[0][5]+(u64x2[1][5]<<(guard_bit//2)) // 将第4个和第6个累加为一个
+ * f[4] = u64x2[0][4]+(u64x2[1][4]<<(guard_bit//2)) + u64x2[0][6]+(u64x2[1][6]<<(guard_bit//2)) // 将第5个和第7个累加为一个
+ * f[5] = u64x2[0][7]+(u64x2[1][7]<<(guard_bit//2))
+ * f[6] = u64x2[0][8]+(u64x2[1][8]<<(guard_bit//2))
+ * f[7] = u64x2[0][9]+(u64x2[1][9]<<(guard_bit//2))
+ * 以下是输入：
+ * @param input uint64x2x2_t 类型的引用，表示输入数据
+ * @param output_ptr float 类型的指针，表示输出数据的存储位置
+ * @param guard_bit 整数类型，表示每个结果的保护位数，默认为 12
+ * @param debug 布尔类型，表示是否开启调试模式，默认为 false
+ */
+inline void accumlate_uint64x2x2_to_8xfloat32_nbits_DIC(uint64x2x2_t &input, float *output_ptr, const int guard_bit = 12, bool debug = false)
+{
+	if (debug)
+		return;
+	// input1构成是2x3xresult(两个int64，每个int64包含3个results),每个位宽2*guard_bit, offset=0,以input1[0/1][0](128->64->2*guard_bit),input1[0/1][1],input1[0/1][2]
+	// input2构成是2x2xresult,每个位宽2*guard_bit, offset=guard_bit,以input2[0/1][0],input2[0/1][1]
+	uint64_t vec_values[2][2];
+	vst1q_u64(vec_values[0], input.val[0]);
+	vst1q_u64(vec_values[1], input.val[1]);
+	// vst1q_u64(vec_values[1],input.val[1]);
+	uint32_t mask = ((1 << (guard_bit)) - 1);
+	uint32_t high_offset = guard_bit / 2;
+	// uint32_t high_mask = ((1 << (guard_bit)) - 1) << (guard_bit / 2); // 0x0f0：高位存的值比低位存的值高出guard_bit//2这么多位
+	uint32_t global_offset = guard_bit;
+	for (int i = 0; i < 2; i++)
+	{
+		for (int j = 0; j < 5; j++)
+		{
+			// low uint64 = vec_values[0][i], high uint64 = vec_values[1][i]
+			int low_value = (vec_values[0][i] >> (j * global_offset)) & mask;
+			int high_value = (vec_values[1][i] >> (j * global_offset)) & mask;
+			int value = low_value + (high_value << high_offset);
+			// printf("low value[0,%d,%d]=%d", i, j, low_value);
+			// printf(", high value[1,%d,%d]=%d", i, j, high_value);
+			// printf(", Added value[%d,%d]=%d\n", i, j, value);
+			output_ptr[i * 3 + j] += (float)(value);
+		}
+	}
+}
+
+bool Test_accumlate_uint64x2x2_to_8xfloat32_nbits_DIC()
+{
+	// build test data
+	uint64x2x2_t input;
+	uint64_t input_val[2][2] = {
+		{0, 0},
+		{0, 0}};
+	int guard_bit = 12;
+
+	// The first uint64x2_t
+	input_val[0][0] = 1ll + (2ll << (guard_bit)) + (3ll << (2 * guard_bit)) + (4ll << (3 * guard_bit)) + +(5ll << (4 * guard_bit));
+	input_val[1][0] = 6ll + (7ll << (guard_bit)) + (8ll << (2 * guard_bit)) + (9ll << (3 * guard_bit)) + +(10ll << (4 * guard_bit));
+	// The second uint64x2_t
+	input_val[0][1] = 1ll + (2ll << (guard_bit)) + (3ll << (2 * guard_bit)) + (4ll << (3 * guard_bit)) + +(5ll << (4 * guard_bit));
+	input_val[1][1] = 6ll + (7ll << (guard_bit)) + (8ll << (2 * guard_bit)) + (9ll << (3 * guard_bit)) + +(10ll << (4 * guard_bit));
+	// 请注意vld2q_u64函数是交错加载的，即第1和3个会加载到第一个uint64x2_t中，第2和4个会加载到第二个uint64x2_t中
+	input = vld2q_u64(reinterpret_cast<uint64_t *>(input_val[0]));
+	// input.val[1] = vld2q_u64(reinterpret_cast<uint64_t*>(input_val[1]));
+	float output_ref[8];
+	/*
+	 * f[0] = u64x2[0][0]+(u64x2[1][0]<<(guard_bit//2))
+	 * f[1] = u64x2[0][1]+(u64x2[1][1]<<(guard_bit//2))
+	 * f[2] = u64x2[0][2]+(u64x2[1][2]<<(guard_bit//2))
+	 * f[3] = u64x2[0][3]+(u64x2[1][3]<<(guard_bit//2)) + u64x2[0][5]+(u64x2[1][5]<<(guard_bit//2)) // 将第4个和第6个累加为一个
+	 * f[4] = u64x2[0][4]+(u64x2[1][4]<<(guard_bit//2)) + u64x2[0][6]+(u64x2[1][6]<<(guard_bit//2)) // 将第5个和第7个累加为一个
+	 * f[5] = u64x2[0][7]+(u64x2[1][7]<<(guard_bit//2))
+	 * f[6] = u64x2[0][8]+(u64x2[1][8]<<(guard_bit//2))
+	 * f[7] = u64x2[0][9]+(u64x2[1][9]<<(guard_bit//2))
+	 */
+	output_ref[0] = 1 + (1 << (guard_bit / 2));
+	output_ref[1] = 2 + (2 << (guard_bit / 2));
+	output_ref[2] = 3 + (3 << (guard_bit / 2));
+	output_ref[3] = 4 + (4 << (guard_bit / 2)) + 6 + (6 << (guard_bit / 2));
+	output_ref[4] = 5 + (5 << (guard_bit / 2)) + 7 + (7 << (guard_bit / 2));
+	output_ref[5] = 8 + (8 << (guard_bit / 2));
+	output_ref[6] = 9 + (9 << (guard_bit / 2));
+	output_ref[7] = 10 + (10 << (guard_bit / 2));
+
+	float output[8];
+	for (int i = 0; i < 8; i++)
+	{
+		output[i] = 0;
+	}
+	// Test
+	accumlate_uint64x2x2_to_8xfloat32_nbits_DIC(input, output, guard_bit, false);
+	for (int i = 0; i < 8; i++)
+	{
+		cout << "output_ref[" << i << "]=" << output_ref[i] << ", output[" << i << "]=" << output[i] << endl;
+		if (output[i] != output_ref[i])
+		{
+			std::cout << "Test failed!" << std::endl;
+			return false;
+		}
+	}
+	std::cout << "Test pass!" << std::endl;
+	return true;
+}
+
 // 用于验证结果是否正确
 template <class T>
 void hipack_naive_imp(const T *inp_ptr, const T *weight_ptr, float *output_ptr,
@@ -334,20 +444,24 @@ void hipack_naive_imp(const T *inp_ptr, const T *weight_ptr, float *output_ptr,
 
 	// int interval = K;
 	// int guard_bit = (a_bit+w_bit)+ceil(log(float(K))/log(2.));
-	int guard_bit = 8; // using the 8-bit to split the results as uchar.
+	int guard_bit = 13; // using the 8-bit to split the results as uchar.
+	if (a_bit >= 7 || w_bit >= 7)
+	{
+		guard_bit = 12;
+	}
 
 	union half_hiconv_packed_out
 	{
 		/* data */
 		uint32 u32_packed_value;
-		uint8 u8_value[4];
+		// uint8 u8_value[4];
 	};
 	union hiconv_packed_out
 	{
 		/* data */
 		uint64 u64_packed_value;
-		uint32 u32_packed_value[2];
-		uint8 u8_value[8];
+		// uint32 u32_packed_value[2];
+		// uint8 u8_value[8];
 	};
 
 // compute output
@@ -393,7 +507,8 @@ void hipack_naive_imp(const T *inp_ptr, const T *weight_ptr, float *output_ptr,
 							// split
 							for (int k = 0; k < K + 2; k++)
 							{
-								output_ptr[output_idx + k] += packed_output.u8_value[k];
+								int output_value = (packed_output.u64_packed_value >> (guard_bit * k)) & ((1 << guard_bit) - 1);
+								output_ptr[output_idx + k] += (float)output_value; // packed_output.u8_value[k];
 							}
 						}
 					}
@@ -404,13 +519,13 @@ void hipack_naive_imp(const T *inp_ptr, const T *weight_ptr, float *output_ptr,
 }
 
 // 根据WA_bits以及MT的参数找到最合适的执行函数体，可以用指针来做
-using FnPtr = void (*)(const uint32_t *, const uint32_t *, float *,
+using FnPtr = void (*)(const int *, const int *, float *,
 					   int, int, int, int, int, int, int, int, int,
 					   int, int, int, int,
 					   int, int);
 
 bool test_bench(int N,
-				int Ci, int H, int W, int Co, int W_bits = 3, int A_bits = 3,
+				int Ci, int H, int W, int Co, int W_bits = 3, int A_bits = 3, // int K = 3,
 				bool DEBUG = false, bool verbose = false, FnPtr direct_conv2d_func = nullptr)
 {
 	// generate test data
@@ -448,8 +563,8 @@ bool test_bench(int N,
 	// typedef unsigned int T;
 	const int align_bits = 128;
 
-	uint32_t *inp_ptr = static_cast<uint32_t *>(std::aligned_alloc(align_bits, N * Ci * H * W * sizeof(uint32_t)));
-	uint32_t *weight_ptr = static_cast<uint32_t *>(std::aligned_alloc(align_bits, Co * Ci * K * K * sizeof(uint32_t)));
+	int *inp_ptr = static_cast<int *>(std::aligned_alloc(align_bits, N * Ci * H * W * sizeof(int)));
+	int *weight_ptr = static_cast<int *>(std::aligned_alloc(align_bits, Co * Ci * K * K * sizeof(int)));
 
 	float *output_ptr_base = static_cast<float *>(std::aligned_alloc(align_bits, N * Co * _Ho * _Wo * sizeof(float)));
 
