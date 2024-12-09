@@ -1,19 +1,25 @@
 # HIPACK: Efficient Low-Bitwidth Convolution Operator
 
-We present and implement **HIPACK**, an efficient low-bitwidth convolution operator that supports integer computations below 8-bit with high performance. Compared to low-bitwidth quantization libraries like QNNPACK, HIPACK enables **dynamic bitwidth** computations below 8-bit and achieves **over 4x performance improvement**.
+This repo contains the detailed implementation of **HIPACK**, an efficient sub-8-bit direct convolution acceleration library. Compared to low-bitwidth quantization libraries like QNNPACK, HIPACK enables **dynamic bitwidth** computations below 8-bit and achieves **over 3.2x** performance improvement.
 
 ---
 
 ## Abstract
-HiPACK is an efficient acceleration library for sub-byte Neural Network Computation.
-HiPACK follows the theoretical approach of adopting multiplication for low-bitwidth convolution and develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with SIMD optimizations. 
-It first identifies the inevitable data dependencies of the multiply-to-convolution. Then decoupling the multiplication with unpacking, followed by a series of optimization techniques developed to maximize the data reuse and processing efficiency.  The synergistic combination of the above methods is thoroughly evaluated with various CNN models on ARM processors. Experimental results demonstrate $4\times$ performance improvements compared to existing approaches, enabling efficient execution of low-bitwidth DNNs on resource-constrained ARM devices.
+HiPACK is an efficient acceleration library for sub-byte Convolutional Neural Network (CNN) Computation.
+HiPACK follows the theoretical approach of adopting multiplication for low-bitwidth convolution and develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with SIMD optimizations and bitwise management. 
+HiPack is built upon the following principles:
+1. **Multiplication-based Convolution**: Adopts multiplication for low-bitwidth convolution.
+2. **Data Dependencies**: Identifies and handles data dependencies in the process of adopting large-bitwidth multiplication for low-bitwidht convolution operations.
+3. **SIMD Optimizations**: Utilizes SIMD instructions to maximize data reuse and processing efficiency.
+4. **Bitwise Management**: Develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with bitwise management.
+
+The synergistic combination of the above methods is thoroughly evaluated with various CNN models on ARM processors. Experimental results demonstrate over $3.2\times$ performance improvements compared to existing approaches, enabling efficient execution of low-bitwidth DNNs on resource-constrained ARM devices.
 
 ---
 ## Features
 
 1. **Dynamic Bitwidth Support**: Adapts to quantized computations with bitwidths lower than 8-bit.
-2. **High Performance**: Significant performance improvements, achieving up to 4x speedup.
+2. **High Performance**: Significant performance improvements, achieving a minimum of 3.2x speedup.
 3. **PyTorch Integration**: Provides PyTorch operator interfaces in [torch_func](./torch_func/README.md), making it easy to integrate into existing deep learning workflows.
 4. **Support for Various Convolution Shapes**:
    - **DirectConv (nx3)**: Native support for `nx3` convolution shapes.
@@ -21,9 +27,24 @@ It first identifies the inevitable data dependencies of the multiply-to-convolut
 
 ---
 
-## Usage in C++ backend
-We have prepared our codes and simple experiments in [src](./src) folder, you can use following commend to run the fast expetiments in Raspi4B+.
+# Implementation Instructions
 
+## Usage in C++ backend
+### Customizable parameters
+- **N**: Input batch size. (Supported values: 1, 2, 4, 8)
+- **Ci**: Number of input channels. (Supported values: 32, 64, 128, 256)
+- **H**: Height of input feature map. (Supported values: 8, 16, 32)
+- **W**: Width of input feature map. (Currently only support numbers divisible by 12, if not, will be padded with zeros to the nearest number divisible by 12, e.g., 32 will be padded to 36. Recommented values: 12, 24, 36)
+- **Co**: Number of output channels. (Supported values: 32, 64, 128, 256)
+- **WA_bits**: Bitwidth of weights and activations. (Supported values: 1, 2, 3, 4, 5, 6. Note: values greater than 4 may have the risk of overflow.)
+- **verbose**: Whether to print verbose information. (Supported values: 0, 1)
+- **debug**: Whether to verify the correctness of the computation. (Supported values: 0, 1)
+
+Based on these parameters, the tensor dimensions for computation are represented as:
+- Input shape: [N, Ci, H, W]
+- Weight shape: [Co, Ci, 3, 3]
+
+Use the following commend to run the fast expetiments on a Raspberry Pi 4B+ platform.
 ```shell
 $ cd src
 $ bash run_bench.sh
