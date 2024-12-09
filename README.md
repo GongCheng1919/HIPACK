@@ -29,9 +29,9 @@ The synergistic combination of the above methods is thoroughly evaluated with va
 
 # Implementation Instructions
 
-## Usage in C++ backend
+The native support of `nx3` kernel is implemented with C++ and located in [src](./src) folder. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls in [torch_func](./torch_func/README.md) folder.
 
-The native support of `nx3` kernel is implemented in C++. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls.
+## Usage in C++ backend
 
 ### Customizable parameters
 - **N**: Input batch size. (Supported values: 1, 2, 4, 8)
@@ -84,4 +84,4 @@ config: W3A3, save to: logs/test_hipack_perf_W3A3.log
 
 ## Usage in PyTorch
 
-You can refer to [torch_func](torch_func/README.md) to find detailed infomation.
+Please refer to [torch_func](torch_func/README.md) to find detailed implementations.
