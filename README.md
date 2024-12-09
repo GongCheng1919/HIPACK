@@ -1,10 +1,28 @@
-# HIPACK
+# HIPACK: Efficient Low-Bitwidth Convolution Operator
+
+We present and implement **HIPACK**, an efficient low-bitwidth convolution operator that supports integer computations below 8-bit with high performance. Compared to low-bitwidth quantization libraries like QNNPACK, HIPACK enables **dynamic bitwidth** computations below 8-bit and achieves **over 4x performance improvement**.
+
+---
+
+## Abstract
 HiPACK is an efficient acceleration library for sub-byte Neural Network Computation.
 HiPACK follows the theoretical approach of adopting multiplication for low-bitwidth convolution and develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with SIMD optimizations. 
 It first identifies the inevitable data dependencies of the multiply-to-convolution. Then decoupling the multiplication with unpacking, followed by a series of optimization techniques developed to maximize the data reuse and processing efficiency.  The synergistic combination of the above methods is thoroughly evaluated with various CNN models on ARM processors. Experimental results demonstrate $4\times$ performance improvements compared to existing approaches, enabling efficient execution of low-bitwidth DNNs on resource-constrained ARM devices.
 
+---
+## Features
 
-# Usage
+1. **Dynamic Bitwidth Support**: Adapts to quantized computations with bitwidths lower than 8-bit.
+2. **High Performance**: Significant performance improvements, achieving up to 4x speedup.
+3. **PyTorch Integration**: Provides PyTorch operator interfaces in [torch_func](./torch_func/README.md), making it easy to integrate into existing deep learning workflows.
+4. **Support for Various Convolution Shapes**:
+   - **DirectConv (nx3)**: Native support for `nx3` convolution shapes.
+   - **DirectConv (nxn)**: Extended implementation for arbitrary `nxn` shapes by tiling them into multiple `nx3` convolutions.
+
+---
+
+## Usage in C++ backend
+We have prepared our codes and simple experiments in [src](./src) folder, you can use following commend to run the fast expetiments in Raspi4B+.
 
 ```shell
 $ cd src
@@ -39,3 +57,7 @@ config: W3A3, save to: logs/test_hipack_perf_W3A3.log
         [W3A3] input[16,512,7,12] * weight[1024,512,3,3]: Elapsed time: 0.221781 seconds Performance: 85.784536 GFLOPS.
         [W3A3] input[16,1024,7,12] * weight[1024,1024,3,3]: Elapsed time: 0.446465 seconds Performance: 85.226671 GFLOPS.
 ```
+
+## Usage in PyTorch
+
+You can refer to [torch_func](torch_func/README.md) to find detailed infomation.

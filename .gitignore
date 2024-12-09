@@ -32,10 +32,11 @@
 *.app
 
 # log files
-# *.log
+*.log
 
 # test files 
 *.txt
+*.ipynb
 
 *.egg*
 *.ninja*

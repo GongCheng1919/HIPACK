@@ -5,11 +5,11 @@ make all
 # Too large input size will cause the baseline program to run for a long time
 hipack_exe=hipack_mt.exe
 N=(1 2 4 8)
-Ci=(2 4 8 16)
-H=(2 4 8 16)
-W=(2 4 8 16)
-Co=(2 4 8 16)
-WA_bits=( 3)
+Ci=(32 64 128 256)
+H=(8 16 32)
+W=(8 16 32)
+Co=(32 64 128 256)
+WA_bits=(3 )
 for n in "${N[@]}"; do
 	for ci in "${Ci[@]}"; do
 		for h in "${H[@]}"; do

@@ -1,57 +1,42 @@
-## version 0.0.0
-The first version of directive convolution2d.
-We employ data reorder, blocking, guard bit optimization, simd and parallisim optimization for high throughts.
-Besides, we also employ the two-step int8x16 vector and dual int16x4x2 vector to cache the middle packed accumulating results for addressing depacking issues.
+# PyTorch Integration
 
-To do list:
+This folder provides PyTorch operator interfaces, making it easy to integrate into existing deep learning workflows.
 
-- [ ] address the problems that high resolution input (espicially h-aixs) will seriously impact the computing performance.
+## Usage Guide
 
-## version 1.0.0
-We have addressed high resolution input problem, which is caused by the invalid padding step, that pads a large pixels to input but do not compute the padding pixels, which cause a fake high computing performance.
-In the version, we addressed the padding problems in direct conv2d. 
-Specifically, we compute all the result with 2 padding pixel for conv2d computation, because direct conv2d natively compute padding results instead of a valid results. We may cause about 5GFLOPs decreas for computing performance.
+### 1. Compile the DirectConv Operator
 
-To do list:
+Run the following command in the current directory to compile the PyTorch DirectConv computation library:
 
-- [x] address the problems that high resolution input (espicially h-aixs) will seriously impact the computing performance.
-
-- [ ] address any-resolution preblem in conv2d computation. Until now, the direct conv2d is efficient to compute conv2d operation with a regular input (divided by 6 or 12), which is inefficent when processing the irregular input such as resolution with 5x5, 7x7, 9x9。
-
-- [ ] implement the pytorch function call.
-
-## version 1.0.3
-Modify the CXX compile args by inserting the custom ```cpp_extension._write_ninja_file_and_compile_objects``` as follows:
-```python
-raw_write_ninja_file_and_compile_objects = cpp_extension._write_ninja_file_and_compile_objects
-
-def new_write_ninja_file_and_compile_objects(sources: List[str],
-        objects,
-        cflags,
-        post_cflags,
-        cuda_cflags,
-        cuda_post_cflags,
-        cuda_dlink_post_cflags,
-        build_directory: str,
-        verbose: bool,
-        with_cuda: Optional[bool]):
-    print("#########cflags: ",cflags)
-    print("#########post_cflags: ",post_cflags)
-    print("#########cuda_cflags: ",cuda_cflags)
-    print("#########cuda_post_cflags: ",cuda_post_cflags)
-    print("#########cuda_dlink_post_cflags: ",cuda_dlink_post_cflags)
-    exclude_flags = ['-g', '-fwrapv',"-O2", "-pthread", "-Wno-unused-result", "-Wsign-compare"]
-    # 如果pst_cflags中有-O1,-O2,-O3,-Ofast之类的标志，则去除-O2
-    cflags = [arg for arg in cflags if arg not in exclude_flags]
-    raw_write_ninja_file_and_compile_objects(sources, objects, cflags, post_cflags, cuda_cflags, cuda_post_cflags, cuda_dlink_post_cflags, build_directory, verbose, with_cuda)
-
-cpp_extension._write_ninja_file_and_compile_objects = new_write_ninja_file_and_compile_objects
+```bash
+bash compile.sh
 ```
 
-## version 1.0.4
+Once compiled, the `direct_conv` operator is ready to use for convolution calculations.
 
-We have modified the direct conv2d with W2A2. (Not implemented)
+> **Note**: You need to install `g++ (10.2.1)` and `PyTorch>=2.2.2` before use `compile.sh`.
 
-## version 1.0.5
+### 2. Using the DirectConv Operator
 
-We have modified the direct conv2d with W2A2.
+Refer to the file `usage_of_directconv.py` for an example of how to use the `direct_conv` operator for efficient convolution computations.
+The following is a simple example.
+```python
+from direct_conv2d import direct_conv2d
+N, Ci, H, W, Co, W_bits,A_bits =16,256,32,36,256,3,3
+flops = 2*N*Ci*Co*H*W*3*3
+inp = torch.randint(0, 2**A_bits -1, (N, Ci, H, W)).int()
+weight = torch.randint(0, 2**W_bits -1, (Co, Ci, 3, 3)).int()
+output = direct_conv2d(inp,weight,W_bits, A_bits,1,1,0,0)
+```
+
+### 3. Extending to nxn Convolution Shapes
+
+DirectConv natively supports `nx3` convolution shapes. To support arbitrary `nxn` shapes, we extend the implementation by tiling `nxn` convolutions into multiple `nx3` convolutions. For example:
+- A **5x5 convolution** can be tiled into **2 5x3 convolutions**.
+- A **9x9 convolution** can be tiled into **3 9x3 convolutions**.
+
+Refer to the file `extend_conv2d.py` for details on using the extended convolution operator.
+
+---
+
+We welcome you to explore and use the HIPACK operator on GitHub, and we look forward to your valuable feedback! 😊

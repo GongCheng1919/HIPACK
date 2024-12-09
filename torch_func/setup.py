@@ -1,9 +1,25 @@
 import subprocess
 import os
-from setuptools import setup, Extension
+from setuptools import setup, Extension,Command
 from torch.utils import cpp_extension
 from typing import Dict, List, Optional, Union, Tuple
 # from torch.utils.cpp_extension import CppExtension, BuildExtension
+
+class CleanCommand(Command):
+    """Custom clean command to tidy up the project root."""
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        os.system('rm -vrf ./build')
+        os.system('rm -vrf ./dist')
+        os.system('rm -vrf ./*.egg-info')
+        os.system('rm -vrf ./*.so')
 
 raw_build_extensions = cpp_extension.BuildExtension.build_extensions
 
@@ -98,4 +114,5 @@ setup(name='direct_conv2d',
                         f"{direct_conv2d_path}"],
           library_dirs=[f'/usr/include/{machine_name}-linux-gnu/']
       )],
-      cmdclass={'build_ext': cpp_extension.BuildExtension})
+      cmdclass={'build_ext': cpp_extension.BuildExtension,
+                "clean": CleanCommand,})
