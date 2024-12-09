@@ -44,7 +44,7 @@ Based on these parameters, the tensor dimensions for computation are represented
 - Input shape: [N, Ci, H, W]
 - Weight shape: [Co, Ci, 3, 3]
 
-Use the following commend to run the fast expetiments on a Raspberry Pi 4B+ platform.
+Use the following command to run the fast expetiments on a Raspberry Pi 4B+ platform.
 ```shell
 $ cd src
 $ bash run_bench.sh
