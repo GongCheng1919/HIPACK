@@ -30,6 +30,9 @@ The synergistic combination of the above methods is thoroughly evaluated with va
 # Implementation Instructions
 
 ## Usage in C++ backend
+
+The native support of `nx3` kernel is implemented in C++. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls.
+
 ### Customizable parameters
 - **N**: Input batch size. (Supported values: 1, 2, 4, 8)
 - **Ci**: Number of input channels. (Supported values: 32, 64, 128, 256)
