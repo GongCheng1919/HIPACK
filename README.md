@@ -1,21 +1,26 @@
-# HIPACK: Efficient Low-Bitwidth Convolution Operator
+# HIPACK
 
-This repo contains the detailed implementation of **HIPACK**, an efficient sub-8-bit direct convolution acceleration library. Compared to low-bitwidth quantization libraries like QNNPACK, HIPACK enables **dynamic bitwidth** computations below 8-bit and achieves **over 3.2x** performance improvement.
+This repo contains the detailed implementation of **HIPACK**, an efficient sub-8-bit direct convolution acceleration library to maximize the performance of quantized NN execution on Arm processors. Compared to low-bitwidth quantization libraries like QNNPACK, CMSIS-NN, HIPACK enables **dynamic bitwidth** computations below 8-bit and achieves **over 3.2x** performance improvement.
 
 ---
 
-## Abstract
-HiPACK is an efficient acceleration library for sub-byte Convolutional Neural Network (CNN) Computation.
+## Design Concepts
+
 HiPACK follows the theoretical approach of adopting multiplication for low-bitwidth convolution and develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with SIMD optimizations and bitwise management. 
 HiPack is built upon the following principles:
-1. **Multiplication-based Convolution**: Adopts multiplication for low-bitwidth convolution.
-2. **Data Dependencies**: Identifies and handles data dependencies in the process of adopting large-bitwidth multiplication for low-bitwidht convolution operations.
-3. **SIMD Optimizations**: Utilizes SIMD instructions to maximize data reuse and processing efficiency.
-4. **Bitwise Management**: Develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with bitwise management.
+1. **Multiplication-based Convolution**: Adopts long-bitwidth multiplication for low-bitwidth convolution.
+<div align="center">
+  <img src="./figures/figure4-crop.pdf" alt="mul-4-conv" width="800"/>
+  <p><em>Figure 1: Multiplication for convolution.</em></p>
+</div>
+2. **Data Dependency Elimination**: Identifies and handles data dependencies in the process of adopting large-bitwidth multiplication for low-bitwidht convolution operations.
+3. **SIMD Optimization**: Utilizes SIMD instructions to maximize data reuse with operation decoupling and reordering to improve data parallelism.
+4. **Bitwise Management**: Develops optimal segmentation bitwidth identification mechanism and dual interleaved register mechanism to improve the efficiency of low-bitwidth convolution on wimpy processors with bitwise management.
 
 The synergistic combination of the above methods is thoroughly evaluated with various CNN models on ARM processors. Experimental results demonstrate over $3.2\times$ performance improvements compared to existing approaches, enabling efficient execution of low-bitwidth DNNs on resource-constrained ARM devices.
 
 ---
+
 ## Features
 
 1. **Dynamic Bitwidth Support**: Adapts to quantized computations with bitwidths lower than 8-bit.
@@ -30,6 +35,7 @@ The synergistic combination of the above methods is thoroughly evaluated with va
 # Implementation Instructions
 
 The native support of `nx3` kernel is implemented with C++ and located in [src](./src) folder. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls in [torch_func](./torch_func/README.md) folder.
+The codes are implemented and tested on a Raspberry Pi 4B+ platform.
 
 ## Usage in C++ backend
 
