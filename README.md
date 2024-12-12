@@ -1,6 +1,6 @@
 # HIPACK
 
-This repo contains the detailed implementation of **HIPACK**, an efficient sub-8-bit direct convolution acceleration library to maximize the performance of quantized NN execution on Arm processors. Compared to low-bitwidth quantization libraries like QNNPACK, CMSIS-NN, HIPACK enables **dynamic bitwidth** computations below 8-bit and achieves **over 3.2x** performance improvement.
+**HIPACK** is an efficient sub-8-bit direct convolution acceleration library to maximize the performance of quantized NN execution on Arm processors.
 
 ---
 
@@ -27,10 +27,15 @@ The synergistic combination of the above methods is thoroughly evaluated with va
    - **DirectConv (nxn)**: Extended implementation for arbitrary `nxn` shapes by tiling them into multiple `nx3` convolutions.
 
 ---
+# Benchmarking Results
 
-# Implementation Instructions
+## Implementation Instructions
 
 The native support of `nx3` kernel is implemented with C++ and located in [src](./src) folder. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls (detailed in [torch_func](./torch_func/README.md) folder).
+```shell
+# compiler, os and environmental information
+# pytorch version
+```
 
 ## `nx3` kernel implementation (C++ backend)
 
@@ -50,6 +55,7 @@ Based on these parameters, the tensor dimensions for computation are represented
 
 Use the following command to run the fast expetiments on a Raspberry Pi 4B+ platform.
 ```shell
+# clone this repository to your local folder
 $ cd src
 $ bash run_bench.sh
 ```
