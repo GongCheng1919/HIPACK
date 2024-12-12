@@ -4,15 +4,11 @@ This repo contains the detailed implementation of **HIPACK**, an efficient sub-8
 
 ---
 
-## Design Concepts
+## Design Principles
 
 HiPACK follows the theoretical approach of adopting multiplication for low-bitwidth convolution and develops a series of novel approaches to fill the efficiency gap of low-bitwidth convolution on wimpy processors with SIMD optimizations and bitwise management. 
 HiPack is built upon the following principles:
 1. **Multiplication-based Convolution**: Adopts long-bitwidth multiplication for low-bitwidth convolution.
-<div align="center">
-  <img src="./figures/figure4-crop.pdf" alt="mul-4-conv" width="800"/>
-  <p><em>Figure 1: Multiplication for convolution.</em></p>
-</div>
 2. **Data Dependency Elimination**: Identifies and handles data dependencies in the process of adopting large-bitwidth multiplication for low-bitwidht convolution operations.
 3. **SIMD Optimization**: Utilizes SIMD instructions to maximize data reuse with operation decoupling and reordering to improve data parallelism.
 4. **Bitwise Management**: Develops optimal segmentation bitwidth identification mechanism and dual interleaved register mechanism to improve the efficiency of low-bitwidth convolution on wimpy processors with bitwise management.
@@ -34,10 +30,9 @@ The synergistic combination of the above methods is thoroughly evaluated with va
 
 # Implementation Instructions
 
-The native support of `nx3` kernel is implemented with C++ and located in [src](./src) folder. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls in [torch_func](./torch_func/README.md) folder.
-The codes are implemented and tested on a Raspberry Pi 4B+ platform.
+The native support of `nx3` kernel is implemented with C++ and located in [src](./src) folder. The other convolution kernel sizes are implemented by tiling the convolution into multiple `nx3` convolutions through pytorch function calls (detailed in [torch_func](./torch_func/README.md) folder).
 
-## Usage in C++ backend
+## `nx3` kernel implementation (C++ backend)
 
 ### Customizable parameters
 - **N**: Input batch size. (Supported values: 1, 2, 4, 8)
@@ -88,6 +83,6 @@ config: W3A3, save to: logs/test_hipack_perf_W3A3.log
         [W3A3] input[16,1024,7,12] * weight[1024,1024,3,3]: Elapsed time: 0.446465 seconds Performance: 85.226671 GFLOPS.
 ```
 
-## Usage in PyTorch
+## `nxn` Kernel implementation (PyTorch implementation)
 
 Please refer to [torch_func](torch_func/README.md) to find detailed implementations.
