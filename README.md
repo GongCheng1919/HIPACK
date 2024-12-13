@@ -49,8 +49,9 @@ The native support of `nx3` kernel is implemented with C++ and located in [src](
 ```shell
 # C++17
 # g++ 10.2.1 
-# PyTorch 2.2.2 (With PyTorch C++ extension)
+# PyTorch >= 2.2.2 (With PyTorch C++ extension)
 # OpenMP
+# Clone this repository to your local raspberry pi 4B+ platform
 ```
 
 ## `nx3` kernel implementation (C++ backend)
@@ -71,12 +72,11 @@ Based on these parameters, the tensor dimensions for computation are represented
 
 Use the following command to run the fast expetiments on a Raspberry Pi 4B+ platform.
 ```shell
-# clone this repository to your local folder
-# The make commond is also inserted into the shell script
 $ cd src
+# The make commond is inserted into the shell script
 $ bash run_bench.sh
 ```
-You can get the following results if no compilation and execution errors.
+You can get the following output (configuration with performance) if no compilation and execution errors.
 ```
 config: N1 Ci2 H2 W2 Co2 W3A3 debug1 verbose0
 	[W3A3] input[1,2,2,12] * weight[2,2,3,3]: Test pass
@@ -98,6 +98,46 @@ config: W3A3, save to: logs/test_hipack_perf_W3A3.log
 ## `nxn` Kernel implementation (PyTorch implementation)
 
 Please refer to [torch_func](torch_func/README.md) to find detailed implementations.
+
+### PyTorch Integration
+
+Navigate to the torch_func folder.
+
+```shell
+cd torch_func/
+```
+
+#### 1. Compile the DirectConv Operator
+
+```bash
+# compile commands are scripted in compile.sh
+bash compile.sh
+```
+Once compiled, the `direct_conv` operator is ready to use for convolutions.
+
+
+#### 2. Using the DirectConv Operator
+
+Refer to the file `usage_of_directconv.py` for an example of how to use the `direct_conv` operator for efficient convolutions.
+The following is a simple example.
+
+```python
+from direct_conv2d import direct_conv2d
+
+N, Ci, H, W, Co, W_bits,A_bits =16,256,32,36,256,3,3
+flops = 2*N*Ci*Co*H*W*3*3
+inp = torch.randint(0, 2**A_bits -1, (N, Ci, H, W)).int()
+weight = torch.randint(0, 2**W_bits -1, (Co, Ci, 3, 3)).int()
+output = direct_conv2d(inp,weight,W_bits, A_bits,1,1,0,0)
+```
+
+#### 3. Extending to nxn Convolution Shapes
+
+`nxn` shape support is implementated by tiling `nxn` convolutions into multiple `nx3` convolutions. For example:
+- A **5x5 convolution** can be tiled into **2 5x3 convolutions**.
+- A **9x9 convolution** can be tiled into **3 9x3 convolutions**.
+
+Refer to the file `extend_conv2d.py` for details on using the extended convolution operator.
 
 
 ## Full model evaluations
