@@ -138,4 +138,4 @@ output = direct_conv2d(inp,weight,W_bits, A_bits,1,1,0,0)
 Refer to the file `extend_conv2d.py` for details on using the extended convolution operator.
 
 
-## Full model evaluations
+## Full Model Evaluations
