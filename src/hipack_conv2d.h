@@ -601,7 +601,7 @@ void hipack_conv2d_v3(const int *inp_ptr, const int *weight_ptr, float *output_p
 	// const int guard_bit = 14; // using the 8-bit to split the results as uchar.
 
 	const int align_bits = 16;
-	int guard_bit = 12;								 // (x-2)+4x<=64 ==> x=13 ==> 5x<=64 ==> x = 12
+	int guard_bit = 13;								 // (x-2)+4x<=64 ==> x=13 ==> 5x<=64 ==> x = 12
 	int micro_iter_num = min(Ci, pow(2, guard_bit)); // 256;
 
 	bool accelerate_with_minor_error = true;
@@ -953,8 +953,9 @@ void hipack_conv2d_khkw(const int *inp_ptr, const int *weight_ptr, float *output
 	// 但是当我们假设最后一个数只需要6bit存储时，其实相当于58bit存储4个数，因此每个数最大可以用58/4=14bit存储
 	// const int guard_bit = 14; // using the 8-bit to split the results as uchar.
 	// assert(KW == 3);
-	if (KW!=3){
-		std::cout<<"Only support KW=3 while KW="<<KW<<std::endl;
+	if (KW != 3)
+	{
+		std::cout << "Only support KW=3 while KW=" << KW << std::endl;
 		return;
 	}
 	const int align_bits = 16;

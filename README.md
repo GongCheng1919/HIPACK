@@ -139,3 +139,16 @@ Refer to the file `extend_conv2d.py` for details on using the extended convoluti
 
 
 ## Full Model Evaluations
+
+We provide the full model evaluations including resnet18 and resnet34 in [torch_func/test_resnet.py](./torch_func/test_resnet.py), and the convlution of resnets used the PyTirch intergration of HIPACK as introduced above.
+You can use the following commend the run the fast expetiments on a Raspberry Pi 4B+ platform (You need complie the PyTorch intergration before).
+```shell
+cd torch_func
+python test_resnet.py
+```
+Then you can get following outputs:
+```shell
+Float time: 10.2774 s
+Qint8 time: 6.0597 s
+DC time: 5.3619 s
+```
