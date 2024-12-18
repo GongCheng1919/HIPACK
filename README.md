@@ -140,14 +140,27 @@ Refer to the file `extend_conv2d.py` for details on using the extended convoluti
 
 ## Full Model Evaluations
 
-We provide the full model evaluations including resnet18 and resnet34 in [torch_func/test_resnet.py](./torch_func/test_resnet.py), and the convlution of resnets used the PyTirch intergration of HIPACK as introduced above.
-You can use the following commend the run the fast expetiments on a Raspberry Pi 4B+ platform (You need complie the PyTorch intergration before).
+We have conducted comprehensive model evaluations, including VGG16, ResNet18, and ResNet34, as detailed in our manuscript. These evaluations can be found in the file [torch_func/full_model_eval.py](./torch_func/full_model_eval.py).
+In these models, only 3x3 convolutions have been replaced with `direct_conv2d`, which is the PyTorch integration of HIPACK as previously mentioned.
+
+You can use the following command to run the fast expetiments on a Raspberry Pi 4B+ platform (You need complie the PyTorch intergration first).
+
 ```shell
 cd torch_func
-python test_resnet.py
+python full_model_eval.py
 ```
+
 Then you can get following outputs:
 ```shell
+Evaluate latency on VGG16 with batchsize of 16:
+Float time: 55.3923 s
+Qint8 time: 14.0694 s
+HIPACK time: 11.6774 s
+Evaluate latency on ResNet18 with batchsize of 16:
+Float time: 6.3254 s
+Qint8 time: 3.2957 s
+HIPACK time: 2.9776 s
+Evaluate latency on ResNet34 with batchsize of 16:
 Float time: 10.2774 s
 Qint8 time: 6.0597 s
 DC time: 5.3619 s
