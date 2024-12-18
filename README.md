@@ -163,5 +163,5 @@ HIPACK time: 2.9776 s
 Evaluate latency on ResNet34 with batchsize of 16:
 Float time: 10.2774 s
 Qint8 time: 6.0597 s
-DC time: 5.3619 s
+HIPACK time: 5.3619 s
 ```
