@@ -166,4 +166,4 @@ Float time: 10.2774 s
 Qint8 time: 6.0597 s
 HIPACK-W3A3 time: 5.3619 s
 ```
-* The Pytorch function call also cause some performance degradation.
+* The Pytorch function call cause some performance degradation.
