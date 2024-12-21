@@ -371,6 +371,6 @@ if __name__ == '__main__':
             out= conv_float(input)
         with MeasureExecutionTime(measure_name=f"\tQint8 {Kh}x{Kw}", flops=flops):
             out= conv_qint8(input)
-        with MeasureExecutionTime(measure_name=f"\tDirect {Kh}x{Kw}", flops=flops):
+        with MeasureExecutionTime(measure_name=f"\tHIPACK {Kh}x{Kw}", flops=flops):
             out= conv_direct(input.int())
         print("-"*80)
