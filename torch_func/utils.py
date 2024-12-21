@@ -2,8 +2,17 @@ import torch
 import torch.nn as nn
 import time
 import logging
+import copy
 import numpy as np
 import torch.nn.quantized
+from torch.quantization import QConfig
+import torch.nn.quantized as nnq
+from torch.ao.quantization import (
+  get_default_qconfig_mapping,
+  get_default_qat_qconfig_mapping,
+  QConfigMapping,
+)
+import torch.ao.quantization.quantize_fx as quantize_fx
 
 
 class MeasureExecutionTime:
@@ -37,7 +46,7 @@ class MeasureExecutionTime:
             else:
                 type = "ns"
         display_time = execution_time*self.type_convert[type]
-        print(f"{self.measure_name} time: {display_time:.4f} {type}")
+        print(f"{self.measure_name} time: {display_time:.4f} {type}" , end = "  ")
         perf,unit = 0,""
         if self.flops is not None:
             perf = self.flops/execution_time
@@ -55,6 +64,8 @@ class MeasureExecutionTime:
                 perf = perf/1e3
                 unit = "KFLOPS"
             print(f"Performance: {perf:.4f}{unit}")
+        else:
+            print()
         if self.log_to_file:
             logging.basicConfig(filename=self.log_file, level=logging.INFO)
             logging.info(f"Execution time: {display_time:.4f} {type}")
@@ -103,3 +114,68 @@ class Qint8Conv2D(nn.Module):
         if copy_weight:
             qconv.weight = torch.quantize_per_tensor(conv2d.weight.data, 1, 0, torch.qint8)
         return qconv
+    
+def eager_quantize_model(model,shape,
+                         prepare = True,
+                         engine_name = 'qnnpack',
+                         inplace=False):
+    # engine_name = 'qnnpack' # 'fbgemm' # 'qnnpack'
+    # Set the quantization engine to QNNPACK
+    torch.backends.quantized.engine = engine_name
+    # qconfig = torch.quantization.get_default_qconfig(engine_name)
+    qconfig = QConfig(
+        weight=torch.quantization.default_observer.with_args(dtype=torch.qint8),  # Use quint8 for weights
+        activation=torch.quantization.default_observer.with_args(dtype=torch.quint8)  # Use quint8 for activations
+    )
+    q_model = model
+    if not inplace:
+        q_model = copy.deepcopy(model)
+
+    q_model.eval()
+    # 指定要融合的模块序列
+    # modules_to_fuse = [['features.0', 'features.1', 'features.2'],
+    # 				['features.3', 'features.4', 'features.5'],
+    # 				['features.7', 'features.8', 'features.9'],
+    # 				['features.10', 'features.11', 'features.12'],
+    # 				['features.14', 'features.15', 'features.16'],
+    # 				['features.17', 'features.18', 'features.19'],
+    # 				["classifier.0","classifier.1"]
+    # 				]
+    # 融合模块
+    # q_model = torch.quantization.fuse_modules(q_model, modules_to_fuse)
+    # Prepare the model for quantization
+    q_model.qconfig = qconfig 
+    # 只量化卷积层
+    # for n,m in q_model.named_modules():
+    # 	if isinstance(m,(nn.Conv2d,torch.quantization.QuantStub,torch.quantization.DeQuantStub)):
+    # 		m.qconfig = qconfig
+    torch.quantization.prepare(q_model, inplace=True)
+    # Quantize the model
+    # run_model_on_data(model, data)
+    if prepare:
+        calibra_data = torch.rand(shape)
+        q_model(calibra_data)
+    torch.quantization.convert(q_model, inplace=True)
+    return q_model
+
+def fx_quantize_model(model,shape,engine_name = 'qnnpack',inplace=False):
+    # engine_name = 'qnnpack' # 'fbgemm' # 'qnnpack'
+    # if not inplace:
+    #     model_fp = copy.deepcopy(model)
+
+    # post training static quantization
+    model_to_quantize = model
+    if not inplace:
+        model_to_quantize = copy.deepcopy(model)
+    # fusion
+    model_to_quantize.eval()
+    model_to_quantize = quantize_fx.fuse_fx(model_to_quantize)
+    qconfig_mapping = get_default_qconfig_mapping(engine_name)
+    example_inputs = torch.rand(shape)
+    # prepare
+    model_prepared = quantize_fx.prepare_fx(model_to_quantize, qconfig_mapping, example_inputs)
+    # calibrate (not shown)
+    model_prepared(example_inputs)
+    # quantize
+    model_quantized = quantize_fx.convert_fx(model_prepared)
+    return model_quantized

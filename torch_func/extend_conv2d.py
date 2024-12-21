@@ -8,6 +8,7 @@ np.random.seed(0)
 random.seed(0)
 
 from direct_conv2d import direct_conv2d,direct_conv2d_khkw
+from utils import MeasureExecutionTime, eager_quantize_model
 
 class DirectConv2D(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0,
@@ -276,10 +277,11 @@ class Conv11by4DirectConv3Padding2(nn.Module):
 
 if __name__ == '__main__':
     # 测试代码
+    '''
     N,Ci,H,W,Co,W_bits,A_bits = 1,1,11,11,1,3,3
     # s = torch.randn(N,Ci,H,W)
     s = torch.randint(0, 2**A_bits -1, (N, Ci, H, W)).float()
-    kernel_5x5 = torch.randint(0, 2**W_bits -1, (Co, Ci, 5, 5)).float()
+     
     conv2d_5x5 = nn.Conv2d(Ci, Co, kernel_size=(5,5), padding=(4,2))
     conv2d_5x5.weight.data.copy_(kernel_5x5)
 
@@ -336,3 +338,39 @@ if __name__ == '__main__':
     print("Error between 1x11x11 and 4x11x3:", (output_11x11-direct_output_4x11x3).abs().mean().item()/output_11x11.abs().mean().item())
     print(output_5x5)
     print(direct_output_2x5x3)
+    '''
+    
+    # 测试不同size下的卷积计算效率
+    sizes = [[16,512,24,24,512,3,3],
+             [16,512,24,24,512,5,5],
+             [16,512,24,24,512,7,7],
+             [16,512,24,24,512,9,9],
+             [16,512,24,24,512,11,11],]
+    A_bits, W_bits = 3,3
+    for size in sizes:
+        N,Ci,H,W,Co, Kh, Kw = size
+        flops = 2*N*Ci*Co*H*W*Kh*Kw
+        input =  torch.randint(0, 2**A_bits -1, (N, Ci, H, W)).float()
+        conv_float = nn.Conv2d(Ci, Co, kernel_size=(Kh, Kw), padding=(Kh-1,2))
+        kernel_5x5 = torch.randint(0, 2**W_bits -1, (Co, Ci, Kh, Kw)).float()
+        conv_float.weight.data.copy_(kernel_5x5)
+        conv_qint8 = eager_quantize_model(conv_float,(1,Ci,H,W),False,'qnnpack',False)
+        if Kw == 3:
+            conv_direct = DirectConv2D(Ci, Co, kernel_size=(3, 3), W_bits=W_bits,A_bits=A_bits)
+        elif Kw == 5:
+            conv_direct = Conv5by2DirectConv3Padding2(conv_float)
+        elif Kw == 7:
+            conv_direct = Conv7by3DirectConv3Padding2(conv_float)
+        elif Kw == 9:
+            conv_direct = Conv9by3DirectConv3Padding2(conv_float)
+        elif Kw == 11:
+            conv_direct = Conv11by4DirectConv3Padding2(conv_float)
+        print(f"Evaluate Conv2D with input size of {N}x{Ci}x{H}x{W} and kernel size of {Co}x{Ci}x{Kh}x{Kw}")
+        # Evaluate latency on different size
+        with MeasureExecutionTime(measure_name=f"\tFloat {Kh}x{Kw}", flops=flops):
+            out= conv_float(input)
+        with MeasureExecutionTime(measure_name=f"\tQint8 {Kh}x{Kw}", flops=flops):
+            out= conv_qint8(input)
+        with MeasureExecutionTime(measure_name=f"\tDirect {Kh}x{Kw}", flops=flops):
+            out= conv_direct(input.int())
+        print("-"*80)

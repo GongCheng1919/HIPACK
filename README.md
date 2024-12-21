@@ -135,8 +135,43 @@ output = direct_conv2d(inp,weight,W_bits, A_bits,1,1,0,0)
 - A **5x5 convolution** can be tiled into **2 5x3 convolutions**.
 - A **9x9 convolution** can be tiled into **3 9x3 convolutions**.
 
+We evaluate the conv2d with various kernel sizes, including 3x3, 5x5, 7x7, 9x9, and 11x11, in the script `extend_conv2d.py`.
+You can run the following command to run the fast experiments, but please ensure that you have compiled the PyTorch integration beforehand.
+```
+cd torch_func
+python extend_conv2d.py
+```
+Then you can get the following outputs:
+```
+Evaluate Conv2D with input size of 16x512x24x24 and kernel size of 512x512x3x3
+        Float 3x3 time: 3.4242 s  Performance: 12.6996GFLOPS
+        Qint8 3x3 time: 2.6350 s  Performance: 16.5035GFLOPS
+        Direct 3x3 time: 1.0159 s  Performance: 42.8046GFLOPS
+--------------------------------------------------------------------------------
+Evaluate Conv2D with input size of 16x512x24x24 and kernel size of 512x512x5x5
+        Float 5x5 time: 9.5982 s  Performance: 12.5853GFLOPS
+        Qint8 5x5 time: 7.4285 s  Performance: 16.2611GFLOPS
+        Direct 5x5 time: 2.6788 s  Performance: 45.0934GFLOPS
+--------------------------------------------------------------------------------
+Evaluate Conv2D with input size of 16x512x24x24 and kernel size of 512x512x7x7
+        Float 7x7 time: 19.5089 s  Performance: 12.1360GFLOPS
+        Qint8 7x7 time: 15.2863 s  Performance: 15.4884GFLOPS
+        Direct 7x7 time: 5.5651 s  Performance: 42.5435GFLOPS
+--------------------------------------------------------------------------------
+Evaluate Conv2D with input size of 16x512x24x24 and kernel size of 512x512x9x9
+        Float 9x9 time: 33.2281 s  Performance: 11.7786GFLOPS
+        Qint8 9x9 time: 26.6702 s  Performance: 14.6748GFLOPS
+        Direct 9x9 time: 6.7355 s  Performance: 58.1069GFLOPS
+--------------------------------------------------------------------------------
+Evaluate Conv2D with input size of 16x512x24x24 and kernel size of 512x512x11x11
+        Float 11x11 time: 37.7351 s  Performance: 15.4936GFLOPS
+        Qint8 11x11 time: 49.6404 s  Performance: 11.7778GFLOPS
+        Direct 11x11 time: 11.9832 s  Performance: 48.7894GFLOPS
+--------------------------------------------------------------------------------
+```
+Additionally, you can find more settings in the script `extend_conv2d.py`, including the input shape and kernel size settings. 
+Feel free to modify these settings to conduct other experiments.
 Refer to the file `extend_conv2d.py` for details on using the extended convolution operator.
-
 
 ## Full Model Evaluations
 
