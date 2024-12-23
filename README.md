@@ -169,6 +169,8 @@ Evaluate Conv2D with input size of 16x512x24x24 and kernel size of 512x512x11x11
         HIPACK 11x11 time: 11.9832 s  Performance: 48.7894GFLOPS
 --------------------------------------------------------------------------------
 ```
+The comparison results are shown below.
+![bitManage](./figures/conv2d_performance.png)
 Additionally, you can find more settings in the script `extend_conv2d.py`, including the input shape and kernel size settings. 
 Feel free to modify these settings to conduct other experiments.
 Refer to the file `extend_conv2d.py` for details on using the extended convolution operator.
