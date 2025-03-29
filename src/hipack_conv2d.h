@@ -594,6 +594,8 @@ void hipack_conv2d_v3(const int *inp_ptr, const int *weight_ptr, float *output_p
 					  int a_bit = 4, int w_bit = 2, int ar_bit = 32, int wr_bit = 32,
 					  int stride = 1, int dilation = 1)
 {
+	assert(a_bit <= 7);
+	assert(w_bit <= 7);
 
 	// test_convert_uint8x16_to_uint16x8_nbits();
 	// 1, 第一个改进点，将guard_bit从12比特提升到14bit，就是为了能够在最内层循环上累加更多次，从而尽可能地延迟解包计算的时间
@@ -633,6 +635,8 @@ void hipack_conv2d_v3(const int *inp_ptr, const int *weight_ptr, float *output_p
 	{
 		max_acc_3_w_mul_a -= 1;
 	}
+
+	assert(exbits + (guard_bit - max_acc_3_w_mul_a) >= 0);
 	int micro_u8_iter_num = min(micro_iter_num, 2 * pow(2, exbits + (guard_bit - max_acc_3_w_mul_a))); // uint8缓存n次中间结果
 	// 每个weight压缩到uint8，三个weight存储到uint32,并将weight的元素进行顺序存储
 	int *packed_weights;
