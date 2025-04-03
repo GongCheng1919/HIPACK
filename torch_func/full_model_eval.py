@@ -21,13 +21,13 @@ from model.conv import fuse_module
 # Set engine QNNPACK
 torch.backends.quantized.engine = 'qnnpack'
 
-W_bits, A_bits = 3,3
-batchsize = 16
-x = torch.rand(batchsize,3,224,224)
-# Evaluate latency on VGG16
-model =vgg16_float()
-q_model = vgg16_qint8()
-dc_model = vgg16_dc(W_bits, A_bits)
+# W_bits, A_bits = 4, 4
+# batchsize = 16
+# x = torch.rand(batchsize,3,224,224)
+# # Evaluate latency on VGG16
+# model =vgg16_float()
+# q_model = vgg16_qint8()
+# dc_model = vgg16_dc(W_bits, A_bits)
 # print(f"Evaluate latency on VGG16 with batchsize of {batchsize}:")
 # with MeasureExecutionTime(measure_name="Float"):
 #     out= model(x)
@@ -66,14 +66,18 @@ dc_model = vgg16_dc(W_bits, A_bits)
 # with MeasureExecutionTime(measure_name="HIPACK"):
 #     out= dc_model(x)
 
-source="input.jpg"
+
+W_bits, A_bits = 5,5
+batchsize = 32
+x = torch.rand(batchsize, 3, 640, 640)
+input(f"Press Enter to continue... {os.getpid()}")
 
 with MeasureExecutionTime(measure_name="Float"):
     os.environ["ENABLE_HIPACK"] = "0"
-    yolo("yolov5s.pt", source)
+    yolo("yolov5s.pt", x)
 
 with MeasureExecutionTime(measure_name="HIPACK"):
     os.environ["ENABLE_HIPACK"] = "1"
     os.environ["HIPACK_W_BITS"] = str(W_bits)
     os.environ["HIPACK_A_BITS"] = str(A_bits)
-    yolo("yolov5s.pt", source)
+    yolo("yolov5s.pt", x)
