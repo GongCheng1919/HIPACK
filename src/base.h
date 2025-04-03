@@ -350,6 +350,7 @@ inline void accumlate_uint64x2x2_to_8xfloat32_nbits_DIC(uint64x2x2_t &input, flo
 {
 	if (debug)
 		return;
+	// memset(output_ptr, 0, sizeof(float) * 8);
 	// input1构成是2x3xresult(两个int64，每个int64包含3个results),每个位宽2*guard_bit, offset=0,以input1[0/1][0](128->64->2*guard_bit),input1[0/1][1],input1[0/1][2]
 	// input2构成是2x2xresult,每个位宽2*guard_bit, offset=guard_bit,以input2[0/1][0],input2[0/1][1]
 	uint64_t vec_values[2][2];

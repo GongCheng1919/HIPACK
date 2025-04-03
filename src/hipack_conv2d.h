@@ -667,8 +667,9 @@ void hipack_conv2d_v3(const int *inp_ptr, const int *weight_ptr, float *output_p
 	// packing inputs: 在分块后可以使用常量小数组加速
 	int d_Wo = Wo / K;
 	int *packed_inputs;
-	posix_memalign((void **)&packed_inputs, align_bits, (N / regN + 1) * regN * Ci * H * (d_Wo / regA / TN + 1) * (regA * TN) * sizeof(int));
-	memset(packed_inputs, 0, (N / regN + 1) * regN * Ci * H * (d_Wo / regA / TN + 1) * (regA * TN) * sizeof(int));
+	uint32_t size = (N / regN + 1) * regN * Ci * H * (d_Wo / regA / TN + 1) * (regA * TN) * sizeof(int);
+	posix_memalign((void **)&packed_inputs, align_bits, size); // junyi: 这个地方开的内存比平常多一点，但也没关系吧。。
+	memset(packed_inputs, 0, size);
 	// 原始的inputs的内存顺序为[N*Ci*H*W]
 	// 重新将packed_inputs排序为[H*N*Ci*d_Wo]=》
 	//     这样重排仍然会导致问题，那就是当将Wo按RegA*TN进行分块后，每一次读取下一个分块的时候会跨过不连续的距离导致跳跃访问，从而导致极大的访存性能开销

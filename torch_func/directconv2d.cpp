@@ -51,8 +51,9 @@ torch::Tensor direct_conv2d(torch::Tensor &inp, torch::Tensor &weight,
     int _Wo = int((W + 2 * padding - (K + (K - 1) * (dilation - 1))) / stride) + 1 + 2 * margin;
 
     // Allocate output tensor
-    torch::Tensor output = torch::empty({N, Co, _Ho, _Wo}, inp.options().dtype(torch::kFloat));
+    torch::Tensor output = torch::zeros({N, Co, _Ho, _Wo}, inp.options().dtype(torch::kFloat));
     float *output_ptr = output.data_ptr<float>();
+    // printf("output_ptr: %p\n", output_ptr);
 
     // get function pointer
     // 根据WA_bits以及MT的参数找到最合适的执行函数体，可以用指针来做
