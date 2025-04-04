@@ -37,7 +37,7 @@
 # test files 
 *.txt
 *.ipynb
-*test*
+
 
 *.egg*
 *.ninja*
