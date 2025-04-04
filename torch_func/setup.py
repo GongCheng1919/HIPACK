@@ -27,7 +27,8 @@ class CustomBuildExtension(cpp_extension.BuildExtension):
         for extension in self.extensions:
             # Set optimized compilation flags
             extension.extra_compile_args = [
-                '-fopenmp', 
+                '-fopenmp',
+                '-DENABLE_OPENMP',
                 '-march=native',
                 '-fconcepts-ts', 
                 '-std=c++17', 
@@ -114,7 +115,7 @@ def main():
     machine_name = subprocess.check_output(['uname', '-m']).decode('utf-8').strip()
     
     # Define paths
-    direct_conv2d_path = f"/Users/junyi/Desktop/HIPACK/src"
+    direct_conv2d_path = f"/home/junyi/HIPACK/src"
     system_include_path = f'/usr/include/{machine_name}-linux-gnu/'
     
     # Define compilation and linking arguments
