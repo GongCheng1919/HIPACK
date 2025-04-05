@@ -82,7 +82,9 @@ class DCConv(nn.Module):
         )
         time_end = time.time_ns()
         time_direct_conv2d = (time_end - time_begin)/1000/1000
-        result_dict[f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.weight.shape)}"][f"hipack"] = (time_end - time_begin)/1000/1000
+
+        key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.weight.shape)}"
+        result_dict.setdefault(key, {}).setdefault("hipack", []).append(time_direct_conv2d)
         print("DCConv output shape", tuple(y.shape), f"time {time_direct_conv2d:.2f}ms")
         
         if self.compare_mode:
@@ -90,7 +92,8 @@ class DCConv(nn.Module):
             y_nn = self.nnConv(x)
             time_end_nn = time.time_ns()
             time_nn_conv2d = (time_end_nn - time_start_nn)/1000/1000
-            result_dict[f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.weight.shape)}"][f"float32"] = (time_end_nn - time_start_nn)/1000/1000
+            key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.nnConv.weight.shape)}"
+            result_dict.setdefault(key, {}).setdefault("float32", []).append(time_nn_conv2d)
             print("nnConv output shape", tuple(y_nn.shape), f"time {time_nn_conv2d:.2f}ms")
             
             if time_nn_conv2d < time_direct_conv2d:
@@ -216,7 +219,9 @@ class QNNPackConv(nn.Module):
         
         time_end = time.time_ns()
         time_qnnpack_conv2d = (time_end - time_begin)/1000/1000
-        result_dict[f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.conv_weight.shape)}"][f"qnnpack"] = (time_end - time_begin)/1000/1000
+        
+        key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.conv_weight.shape)}"
+        result_dict.setdefault(key, {}).setdefault("qnnpack", []).append(time_qnnpack_conv2d)
         print("QNNPackConv output shape", tuple(y.shape), f"time {time_qnnpack_conv2d:.2f}ms")
         return y
 
@@ -316,7 +321,7 @@ def run(mode: str):
     print(sampled_images.shape)
 
 import pandas as pd
-
+import numpy as np
 if __name__ == "__main__":
     run("hipack")
     run("qnnpack")
@@ -324,6 +329,15 @@ if __name__ == "__main__":
     df = pd.DataFrame(result_dict)
     df = df.transpose()
     
+    df["hipack_avg"] = df["hipack"].apply(lambda x: np.mean(x))
+    df["hipack_std"] = df["hipack"].apply(lambda x: np.std(x))
+    
+    df["float32_avg"] = df["float32"].apply(lambda x: np.mean(x))
+    df["float32_std"] = df["float32"].apply(lambda x: np.std(x))
+    
+    df["qnnpack_avg"] = df["qnnpack"].apply(lambda x: np.mean(x))
+    df["qnnpack_std"] = df["qnnpack"].apply(lambda x: np.std(x))
+    
     # compare hipack, float32, qnnpack speed, add a column "winner" to show which one is faster
-    df["winner"] = df.apply(lambda row: "hipack" if row["hipack"] < row["float32"] and row["hipack"] < row["qnnpack"] else ("qnnpack" if row["qnnpack"] < row["float32"] else "float32"), axis=1)
+    df["winner"] = df.apply(lambda row: "hipack_avg" if row["hipack_avg"] < row["float32_avg"] and row["hipack_avg"] < row["qnnpack_avg"] else ("qnnpack_avg" if row["qnnpack_avg"] < row["float32_avg"] else "float32_avg"), axis=1)
     df.to_csv("result.csv", index=True)
