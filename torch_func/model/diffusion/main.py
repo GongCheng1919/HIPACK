@@ -305,7 +305,7 @@ def run(mode: str):
     model = Unet(
         dim = 64,
         dim_mults = (1, 2, 4, 8),
-        flash_attn = True
+        flash_attn = False
     )
 
     # Choose mode: 'float', 'hipack', or 'qnnpack'
@@ -317,7 +317,7 @@ def run(mode: str):
         timesteps = 1    # number of steps
     )
 
-    sampled_images = diffusion.sample(batch_size = 16, return_all_timesteps = False)
+    sampled_images = diffusion.sample(batch_size = 32, return_all_timesteps = False)
     print(sampled_images.shape)
 
 import pandas as pd
