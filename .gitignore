@@ -42,3 +42,8 @@
 *.egg*
 *.ninja*
 __pycache__
+
+.DS_Store
+*.pt
+*.csv
+*.xlsx
