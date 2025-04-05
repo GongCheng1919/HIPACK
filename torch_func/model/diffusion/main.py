@@ -6,7 +6,20 @@ import direct_conv2d
 from torch.nn.modules.conv import Conv2d
 os.environ["PATH"] += os.path.dirname(__file__) + ":" + os.environ["PATH"]
 from denoising_diffusion_pytorch import Unet, GaussianDiffusion
+from torch.quantization import QConfig
+from collections import defaultdict
 
+result_dict = defaultdict(dict) 
+"""
+{
+    "input_shape=(16, 3, 112, 112), weight_shape=(16, 16, 3, 3)": {
+        "qnnpack":  #time
+        "hipack":  #time
+        "float32":  #time
+    }
+}
+
+"""
 # disable FutureWarning
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -69,6 +82,7 @@ class DCConv(nn.Module):
         )
         time_end = time.time_ns()
         time_direct_conv2d = (time_end - time_begin)/1000/1000
+        result_dict[f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.weight.shape)}"][f"hipack"] = (time_end - time_begin)/1000/1000
         print("DCConv output shape", tuple(y.shape), f"time {time_direct_conv2d:.2f}ms")
         
         if self.compare_mode:
@@ -76,6 +90,7 @@ class DCConv(nn.Module):
             y_nn = self.nnConv(x)
             time_end_nn = time.time_ns()
             time_nn_conv2d = (time_end_nn - time_start_nn)/1000/1000
+            result_dict[f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.weight.shape)}"][f"float32"] = (time_end_nn - time_start_nn)/1000/1000
             print("nnConv output shape", tuple(y_nn.shape), f"time {time_nn_conv2d:.2f}ms")
             
             if time_nn_conv2d < time_direct_conv2d:
@@ -93,6 +108,7 @@ class DCConv(nn.Module):
             y = y[:, :, 0:-2, 1:-1] # 去掉多算的边界
              
         print(f"DCConv time {(time_end - time_begin)/1000/1000:.2f}ms, final shape", y.shape)
+        
         return y
 
     # def forward_fuse(self, x):
@@ -100,111 +116,214 @@ class DCConv(nn.Module):
     #     x = x.int()
     #     x = direct_conv2d.direct_conv2d(x, self.weight, self.W_bits, self.A_bits, self.MT, self.stride, self.show_time, self.depth_conv)
     #     return self.act(x)
+
+class PTConv(nn.Module):
+    """Applies a PyTorch Conv2d layer for performance comparison with DirectConv2d"""
     
+    def __init__(self, in_channel, out_channel, k, s, p=None, g=1, d=1, show_time=False, conv_weight=None, conv_bias=None):
+        super().__init__()
+        self.padding = p if type(p) is int else p[0]
+        self.stride = s if type(s) is int else s[0]
+        self.conv = nn.Conv2d(
+            in_channels=in_channel,
+            out_channels=out_channel,
+            kernel_size=k,
+            stride=s,
+            padding=p,
+            groups=g,
+            dilation=d,
+        )
+        self.conv.weight = torch.nn.Parameter(conv_weight, requires_grad=False)
+        self.conv.bias = torch.nn.Parameter(conv_bias, requires_grad=False) if conv_bias is not None else None
+        print("PTConv created with shape", self.conv.weight.shape, "stride", self.stride, "padding", self.padding)
+    
+    def forward(self, x):
+        print("")
+        print("PTConv Input", tuple(x.shape), "stride", self.stride, "padding", self.padding)
+        time_begin = time.time_ns()
+        
+        # Apply PyTorch Conv2d
+        y = self.conv(x)
+        
+        time_end = time.time_ns()
+        time_pt_conv2d = (time_end - time_begin)/1000/1000
+        
+        print("PTConv output shape", tuple(y.shape), f"time {time_pt_conv2d:.2f}ms")
+        return y
+
+class QNNPackConv(nn.Module):
+    """Applies a QNNPACK quantized convolution for performance comparison with DirectConv2d"""
+    
+    def __init__(self, in_channel, out_channel, k, s, p=None, g=1, d=1, show_time=False, conv_weight=None, conv_bias=None):
+        super().__init__()
+        self.padding = p if type(p) is int else p[0]
+        self.stride = s if type(s) is int else s[0]
+        self.show_time = show_time
+        self.kernel_size = k
+        
+        # Create float Conv2d to be quantized
+        self.conv = nn.Conv2d(
+            in_channels=in_channel,
+            out_channels=out_channel,
+            kernel_size=k,
+            stride=s,
+            padding=p,
+            groups=g,
+            dilation=d,
+        )
+        self.conv_weight = conv_weight
+        # Set weights and bias if provided
+        if conv_weight is not None:
+            self.conv.weight = torch.nn.Parameter(conv_weight, requires_grad=False)
+        if conv_bias is not None:
+            self.conv.bias = torch.nn.Parameter(conv_bias, requires_grad=False)
+            
+        # Setup quantization components
+        self.quant = torch.ao.quantization.QuantStub()
+        self.dequant = torch.ao.quantization.DeQuantStub()
+        
+        # Configure quantization
+        torch.backends.quantized.engine = 'qnnpack'
+        qconfig = QConfig(
+            weight=torch.quantization.default_observer.with_args(dtype=torch.qint8),
+            activation=torch.quantization.default_observer.with_args(dtype=torch.quint8)
+        )
+        self.conv.qconfig = qconfig
+        self.quant.qconfig = qconfig
+        self.dequant.qconfig = qconfig
+        
+        # Prepare and convert the model
+        torch.quantization.prepare(self, inplace=True)
+        # We'll do the conversion in forward to measure time properly
+        self.is_quantized = False
+        print("QNNPackConv created with shape", self.conv.weight.shape, "stride", self.stride, "padding", self.padding)
+    
+    def forward(self, x):
+        print("")
+        print("QNNPackConv Input", tuple(x.shape), "stride", self.stride, "padding", self.padding)
+        
+        # Convert the model on first forward pass
+        if not self.is_quantized:
+            torch.quantization.convert(self, inplace=True)
+            self.is_quantized = True
+        
+        time_begin = time.time_ns()
+        
+        # Apply quantized convolution
+        x = self.quant(x)
+        y = self.conv(x)
+        y = self.dequant(y)
+        
+        time_end = time.time_ns()
+        time_qnnpack_conv2d = (time_end - time_begin)/1000/1000
+        result_dict[f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.conv_weight.shape)}"][f"qnnpack"] = (time_end - time_begin)/1000/1000
+        print("QNNPackConv output shape", tuple(y.shape), f"time {time_qnnpack_conv2d:.2f}ms")
+        return y
 
 
-def replace_conv2d(model, enable_hipack:bool, W_bits:int, A_bits:int):
+def replace_conv2d(model, mode='float', W_bits=4, A_bits=4):
+    """
+    Replace Conv2d layers in the model with either DirectConv or QNNPack quantized convolution.
+    
+    Args:
+        model: The model to modify.
+        mode: One of 'float' (original), 'hipack' (DirectConv), or 'qnnpack' (QNNPack quantization).
+        W_bits: Weight bit width for HIPACK.
+        A_bits: Activation bit width for HIPACK.
+    """
+    if mode not in ['float', 'hipack', 'qnnpack']:
+        raise ValueError("mode must be one of 'float', 'hipack', or 'qnnpack'")
+    
     for name, module in model.named_children():
         if isinstance(module, Conv2d):
             
             print(module.in_channels, module.out_channels, module.kernel_size, module.stride, module.padding, end=" ")
             
-            if module.kernel_size[0] == 1: # 等于一的没办法加速
+            if module.kernel_size[0] == 1:  # Skip kernel size 1
                 print("Skip, kernel size is 1")
                 continue
             print("")
             
-            # pdb.set_trace()
-            if not enable_hipack:
-                continue
-
-            new_conv = DCConv(
-                in_channel=module.in_channels,
-                out_channel=module.out_channels,
-                W_bits=W_bits,
-                A_bits=A_bits,
-                k=module.kernel_size[0],
-                s=module.stride,
-                p=module.padding,
-                g=module.groups,
-                d=module.dilation,
-                conv_weight=module.state_dict()["weight"],
-                conv_bias=module.state_dict()["bias"] if "bias" in module.state_dict() else None,
-                compare_mode=True,
-                # show_time=True
-            )
-            setattr(model, name, new_conv)  # 替换层
+            if mode == 'float':
+                new_conv = PTConv(
+                    in_channel=module.in_channels,
+                    out_channel=module.out_channels,
+                    k=module.kernel_size[0],
+                    s=module.stride,
+                    p=module.padding,
+                    g=module.groups,
+                    d=module.dilation,
+                    conv_weight=module.state_dict()["weight"],
+                    conv_bias=module.state_dict()["bias"] if "bias" in module.state_dict() else None,
+                )
+                setattr(model, name, new_conv)
+            elif mode == 'hipack':
+                # Replace with DirectConv
+                new_conv = DCConv(
+                    in_channel=module.in_channels,
+                    out_channel=module.out_channels,
+                    W_bits=W_bits,
+                    A_bits=A_bits,
+                    k=module.kernel_size[0],
+                    s=module.stride,
+                    p=module.padding,
+                    g=module.groups,
+                    d=module.dilation,
+                    conv_weight=module.state_dict()["weight"],
+                    conv_bias=module.state_dict()["bias"] if "bias" in module.state_dict() else None,
+                    compare_mode=True,
+                )
+                setattr(model, name, new_conv)
+            elif mode == 'qnnpack':
+                # Replace with QNNPack quantized convolution
+                new_conv = QNNPackConv(
+                    in_channel=module.in_channels,
+                    out_channel=module.out_channels,
+                    k=module.kernel_size[0],
+                    s=module.stride,
+                    p=module.padding,
+                    g=module.groups,
+                    d=module.dilation,
+                    conv_weight=module.state_dict()["weight"],
+                    conv_bias=module.state_dict()["bias"] if "bias" in module.state_dict() else None,
+                )
+                setattr(model, name, new_conv)
         else:
-            replace_conv2d(module, enable_hipack, W_bits, A_bits)  # 递归替换
-            
-        continue
-        if isinstance(module, Conv):
-            
-            if module.conv.kernel_size[0] == 1: # 等于一的没办法加速
-                print("Skip, kernel size is 1")
-                continue
-            if module.conv.kernel_size[0] != 3: # 不等于 3 的，大的圈数不一样
-                print("Skip, kernel size is not 3")
-                continue
-            # if module.conv.kernel_size[0] == 3 and module.conv.padding[0] == 1:
-            #     continue # segfault
-            if module.conv.kernel_size[0] == 3 \
-                and module.conv.padding[0] == 1 \
-                and module.conv.stride[0] == 2 \
-                and module.conv.in_channels == 32 \
-                and module.conv.out_channels == 64:
-                print("Skip, segfault")
-                continue # segfault
-            
-            if module.conv.kernel_size[0] == 3 \
-                and module.conv.stride[0] == 2 \
-                and module.conv.in_channels == 64 \
-                and module.conv.out_channels == 128:
-                print("Skip, segfault")
-                continue # segfault
-                
-            if module.conv.kernel_size[0] == 3 \
-                and module.conv.stride[0] == 2 \
-                and module.conv.in_channels == 128 \
-                and module.conv.out_channels == 256:
-                print("Skip, segfault")
-                continue # segfault
-                
-            if module.conv.kernel_size[0] == 3 \
-                and module.conv.stride[0] == 2 \
-                and module.conv.in_channels == 256 \
-                and module.conv.out_channels == 512:
-                print("Skip, segfault")
-                continue # segfault
+            replace_conv2d(module, mode, W_bits, A_bits)  # Recursively replace
 
-            if module.conv.kernel_size[0] == 3 \
-                and module.conv.stride[0] == 2 \
-                and module.conv.in_channels == 128 \
-                and module.conv.out_channels == 128:
-                print("Skip, segfault")
-                continue # segfault
-            
-            if module.conv.kernel_size[0] == 3 \
-                and module.conv.stride[0] == 2 \
-                and module.conv.in_channels == 256 \
-                and module.conv.out_channels == 256:
-                print("Skip, segfault")
-                continue # segfault
-            
 
-model = Unet(
-    dim = 64,
-    dim_mults = (1, 2, 4, 8),
-    flash_attn = True
-)
+    
 
-replace_conv2d(model, True, 4, 4) # 替换模型中的 Conv 层
-diffusion = GaussianDiffusion(
-    model,
-    image_size = 112,
-    timesteps = 1    # number of steps
-)
+def run(mode: str):
+    assert mode in ["float", "hipack", "qnnpack"], "mode must be one of 'float', 'hipack', or 'qnnpack'"
+    
+    model = Unet(
+        dim = 64,
+        dim_mults = (1, 2, 4, 8),
+        flash_attn = True
+    )
 
-sampled_images = diffusion.sample(batch_size = 8, return_all_timesteps = False)
-sampled_images.shape # (16, 3, 128, 128)
-print(sampled_images.shape)
+    # Choose mode: 'float', 'hipack', or 'qnnpack'
+    replace_conv2d(model, mode=mode, W_bits=4, A_bits=4)
+
+    diffusion = GaussianDiffusion(
+        model,
+        image_size = 56,
+        timesteps = 1    # number of steps
+    )
+
+    sampled_images = diffusion.sample(batch_size = 16, return_all_timesteps = False)
+    print(sampled_images.shape)
+
+import pandas as pd
+
+if __name__ == "__main__":
+    run("hipack")
+    run("qnnpack")
+
+    df = pd.DataFrame(result_dict)
+    df = df.transpose()
+    
+    # compare hipack, float32, qnnpack speed, add a column "winner" to show which one is faster
+    df["winner"] = df.apply(lambda row: "hipack" if row["hipack"] < row["float32"] and row["hipack"] < row["qnnpack"] else ("qnnpack" if row["qnnpack"] < row["float32"] else "float32"), axis=1)
+    df.to_csv("result.csv", index=True)
