@@ -13,10 +13,46 @@ result_dict = defaultdict(dict)
         "qnnpack":  #time
         "hipack":  #time
         "float32":  #time
+        "flops_hipack": #flops
+        "flops_float32": #flops
+        "flops_qnnpack": #flops
     }
 }
 
 """
+
+def calculate_conv_flops(batch_size, in_channels, height, width, out_channels, kernel_size: int, stride=1, padding=0):
+    """Calculate the number of FLOPs for a convolution operation.
+    
+    Args:
+        batch_size: Number of samples in batch
+        in_channels: Number of input channels
+        height, width: Input height and width
+        out_channels: Number of output channels
+        kernel_size: Size of the convolutional kernel (assuming square)
+        stride: Convolution stride (default 1)
+        padding: Padding size (default 0)
+    
+    Returns:
+        flops: Number of floating point operations
+    """
+    # Calculate output dimensions
+    out_height = ((height + 2 * padding - kernel_size) // stride) + 1
+    out_width = ((width + 2 * padding - kernel_size) // stride) + 1
+    
+    # Calculate number of operations per output element
+    # Each output element requires kernel_size^2 * in_channels multiplications and additions
+    ops_per_element = kernel_size * kernel_size * in_channels
+    
+    # Calculate total number of output elements
+    total_elements = batch_size * out_channels * out_height * out_width
+    
+    # Each output element requires ops_per_element multiplications and 
+    # (ops_per_element - 1) additions for a total of (2 * ops_per_element - 1) FLOPs
+    # In practice, we often just count it as 2 * ops_per_element for simplicity
+    flops = total_elements * 2 * ops_per_element
+    
+    return flops
 
 class DCConv(nn.Module):
     """Applies a convolution, batch normalization, and activation function to an input tensor in a neural network."""
@@ -77,18 +113,35 @@ class DCConv(nn.Module):
         time_end = time.time_ns()
         time_direct_conv2d = (time_end - time_begin)/1000/1000
 
+        # Calculate FLOPS for DirectConv
+        flops_direct = calculate_conv_flops(
+            x.shape[0], x.shape[1], x.shape[2], x.shape[3], 
+            self.weight.shape[0], self.kernel_size, self.stride, self.padding
+        )
+        flops_per_sec_direct = flops_direct / (time_direct_conv2d / 1000)  # Convert ms to seconds
+
         key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.weight.shape)}"
         result_dict.setdefault(key, {}).setdefault("hipack", []).append(time_direct_conv2d)
-        print("DCConv output shape", tuple(y.shape), f"time {time_direct_conv2d:.2f}ms")
+        result_dict.setdefault(key, {}).setdefault("flops_hipack", []).append(flops_per_sec_direct)
+        print(f"DCConv output shape {tuple(y.shape)}, time {time_direct_conv2d:.2f}ms, FLOPS: {flops_per_sec_direct/1e9:.2f} GFLOPS")
         
         if self.compare_mode:
             time_start_nn = time.time_ns()
             y_nn = self.nnConv(x)
             time_end_nn = time.time_ns()
             time_nn_conv2d = (time_end_nn - time_start_nn)/1000/1000
+            
+            # Calculate FLOPS for float32 Conv
+            flops_float32 = calculate_conv_flops(
+                x.shape[0], x.shape[1], x.shape[2], x.shape[3], 
+                self.nnConv.weight.shape[0], self.kernel_size, self.stride, self.padding
+            )
+            flops_per_sec_float32 = flops_float32 / (time_nn_conv2d / 1000)  # Convert ms to seconds
+            
             key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.nnConv.weight.shape)}"
             result_dict.setdefault(key, {}).setdefault("float32", []).append(time_nn_conv2d)
-            print("nnConv output shape", tuple(y_nn.shape), f"time {time_nn_conv2d:.2f}ms")
+            result_dict.setdefault(key, {}).setdefault("flops_float32", []).append(flops_per_sec_float32)
+            print(f"nnConv output shape {tuple(y_nn.shape)}, time {time_nn_conv2d:.2f}ms, FLOPS: {flops_per_sec_float32/1e9:.2f} GFLOPS")
             
             if time_nn_conv2d < time_direct_conv2d:
                 print("❌ nn.Conv2d is faster, using nn.Conv2d")
@@ -104,7 +157,7 @@ class DCConv(nn.Module):
         elif self.padding == 0:
             y = y[:, :, 0:-2, 1:-1] # 去掉多算的边界
              
-        print(f"DCConv time {(time_end - time_begin)/1000/1000:.2f}ms, final shape", y.shape)
+        print(f"DCConv time {(time_end - time_begin)/1000/1000:.2f}ms, final shape {y.shape}")
         
         return y
 
@@ -121,6 +174,7 @@ class PTConv(nn.Module):
         super().__init__()
         self.padding = p if type(p) is int else p[0]
         self.stride = s if type(s) is int else s[0]
+        self.kernel_size = k if type(k) is int else k[0]
         self.conv = nn.Conv2d(
             in_channels=in_channel,
             out_channels=out_channel,
@@ -145,7 +199,18 @@ class PTConv(nn.Module):
         time_end = time.time_ns()
         time_pt_conv2d = (time_end - time_begin)/1000/1000
         
-        print("PTConv output shape", tuple(y.shape), f"time {time_pt_conv2d:.2f}ms")
+        # Calculate FLOPS for PTConv
+        flops_pt = calculate_conv_flops(
+            x.shape[0], x.shape[1], x.shape[2], x.shape[3], 
+            self.conv.weight.shape[0], self.kernel_size, self.stride, self.padding
+        )
+        flops_per_sec_pt = flops_pt / (time_pt_conv2d / 1000)  # Convert ms to seconds
+        
+        key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.conv.weight.shape)}"
+        result_dict.setdefault(key, {}).setdefault("float32", []).append(time_pt_conv2d)
+        result_dict.setdefault(key, {}).setdefault("flops_float32", []).append(flops_per_sec_pt)
+        print(f"PTConv output shape {tuple(y.shape)}, time {time_pt_conv2d:.2f}ms, FLOPS: {flops_per_sec_pt/1e9:.2f} GFLOPS")
+        
         return y
 
 class QNNPackConv(nn.Module):
@@ -214,9 +279,18 @@ class QNNPackConv(nn.Module):
         time_end = time.time_ns()
         time_qnnpack_conv2d = (time_end - time_begin)/1000/1000
         
+         # Calculate FLOPS for DirectConv
+        flops_qnnpack = calculate_conv_flops(
+            x.shape[0], x.shape[1], x.shape[2], x.shape[3], 
+            self.conv_weight.shape[0], self.kernel_size, self.stride, self.padding
+        )
+        flops_per_sec_qnnpack = flops_qnnpack / (time_qnnpack_conv2d / 1000)  # Convert ms to seconds
+
         key = f"input_shape={tuple(x.shape)}, weight_shape={tuple(self.conv_weight.shape)}"
         result_dict.setdefault(key, {}).setdefault("qnnpack", []).append(time_qnnpack_conv2d)
-        print("QNNPackConv output shape", tuple(y.shape), f"time {time_qnnpack_conv2d:.2f}ms")
+        result_dict.setdefault(key, {}).setdefault("flops_qnnpack", []).append(flops_per_sec_qnnpack)
+        print(f"QNNPACK output shape {tuple(y.shape)}, time {time_qnnpack_conv2d:.2f}ms, FLOPS: {flops_per_sec_qnnpack/1e9:.2f} GFLOPS")
+        
         return y
 
 
@@ -296,4 +370,3 @@ def replace_conv2d(model, mode='float', W_bits=4, A_bits=4):
             replace_conv2d(module, mode, W_bits, A_bits)  # Recursively replace
 
 
- 
