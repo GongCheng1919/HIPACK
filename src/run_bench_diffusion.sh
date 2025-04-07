@@ -20,8 +20,8 @@ for i in {1,2,3,4,5}; do
 	mkdir -p logs
 	echo "config: W${w_bit}A${a_bit}, save to: ${LOG_FILE}"
 	# ./${HIPACK_EXE} ${N} $((C)) $((H/2)) $((W/2)) $((C*2)) ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
-	./${HIPACK_EXE} 32 32 160 160 32 0 0 > ${LOG_FILE}
-	./${HIPACK_EXE} 32 64 80 80 64 0 0   > ${LOG_FILE}
-	./${HIPACK_EXE} 32 128 40 40 128 0 0 > ${LOG_FILE}
-	./${HIPACK_EXE} 32 256 20 20 256 0 0 > ${LOG_FILE}
+	./${HIPACK_EXE} 32 32 160 160 32 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
+	./${HIPACK_EXE} 32 64 80 80 64 ${w_bit} ${a_bit} 0 0   | tee ${LOG_FILE}
+	./${HIPACK_EXE} 32 128 40 40 128 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
+	./${HIPACK_EXE} 32 256 20 20 256 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
 done
