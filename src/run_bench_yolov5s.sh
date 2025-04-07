@@ -7,7 +7,6 @@ THREAD="mt"
 # Test the correcteness of the HIPACK
 # Too large input size will cause the baseline program to run for a long time
 HIPACK_EXE=hipack_${THREAD}.exe
-WA_bits=(3 4)
 
 
 # Test the performance of the HIPACK
