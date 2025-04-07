@@ -24,7 +24,7 @@ class DirectConv2D(nn.Module):
         return direct_conv2d(x, self.weight.int(), self.W_bits,self.A_bits, 1, 1, 0, 0)
     
 if __name__ == '__main__':
-    N, Ci, H, W, Co, W_bits,A_bits =16,1024,7,12,1024,3,3
+    N, Ci, H, W, Co, W_bits,A_bits =32,256,24,24,256,4,4
     flops = 2*N*Ci*Co*H*W*3*3
     inp = torch.randint(0, 2**A_bits -1, (N, Ci, H, W)).float()
     weight = torch.randint(0, 2**W_bits -1, (Co, Ci, 3, 3)).float()

@@ -31,7 +31,7 @@ def run(mode: str):
     )
 
     # Choose mode: 'float', 'hipack', or 'qnnpack'
-    replace_conv2d(model, mode=mode, W_bits=4, A_bits=4)
+    replace_conv2d(model, mode=mode, W_bits=3, A_bits=3)
 
     diffusion = GaussianDiffusion(
         model,
