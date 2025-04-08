@@ -12,15 +12,15 @@ HIPACK_EXE=hipack_${THREAD}.exe
 # Test the performance of the HIPACK
 
 
-for i in {1,2,3,4,5}; do
+for i in $(seq 1 5); do
 	w_bit=3
 	a_bit=${w_bit}
 	echo "config: W${w_bit}A${a_bit}"
-	LOG_FILE=logs/test_hipack_perf_${DEVICE}_${THREAD}_W${w_bit}A${a_bit}.log
+	LOG_FILE=logs/test_hipack_perf_${DEVICE}_${THREAD}_W${w_bit}A${a_bit}_${i}.log
 	mkdir -p logs
 
 	echo "config: W${w_bit}A${a_bit}, save to: ${LOG_FILE}"
-	# ./${HIPACK_EXE} ${N} $((C)) $((H/2)) $((W/2)) $((C*2)) ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
+	# ./${HIPACK_EXE} ${N} $((Ci)) $((H/2)) $((W/2)) $((Co*2)) ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
 	./${HIPACK_EXE} 32 3 56 56 64 ${w_bit} ${a_bit} 0 0  | tee ${LOG_FILE}
 	./${HIPACK_EXE} 32 64 56 56 64 ${w_bit} ${a_bit} 0 0  | tee ${LOG_FILE}
 	./${HIPACK_EXE} 32 64 28 28 64 ${w_bit} ${a_bit} 0 0  | tee ${LOG_FILE}

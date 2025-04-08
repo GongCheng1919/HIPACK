@@ -46,7 +46,7 @@ H=224
 W=224
 C=32
 
-for i in {1,2,3,4,5}; do
+for i in $(seq 1 5); do
 	for w_bit in "${WA_bits[@]}"; do
 		a_bit=${w_bit}
 		echo "config: W${w_bit}A${a_bit}"
