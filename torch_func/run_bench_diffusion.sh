@@ -1,4 +1,4 @@
-DEVICE="rpi4_yolov5s"
+DEVICE="rpi4_diffusion"
 HIPACK_EXE=usage_of_directconv_args.py
 
 # Test the performance of the HIPACK
