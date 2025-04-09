@@ -950,7 +950,7 @@ void hipack_conv2d_v3(const int *inp_ptr, const int *weight_ptr, float *output_p
 
 	auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
-    std::cout << "hipack_conv2d_v3 execution time: " << elapsed.count() << " seconds" << std::endl;
+    std::cout << "hipack_conv2d_v3 execution time: " << elapsed.count() * 1000 << " ms" << std::endl;
 	printf("N: %d, Ci: %d, H: %d, W: %d, Co: %d, K: %d, Ho: %d, Wo: %d Padding: %d, a_bit: %d, w_bit: %d, ar_bit: %d, wr_bit: %d, stride: %d, dilation: %d\n",
 		   N, Ci, H, W, Co, K, Ho, Wo, padding, a_bit, w_bit, ar_bit, wr_bit, stride, dilation);
 }
