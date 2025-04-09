@@ -19,9 +19,9 @@ for i in $(seq 1 5); do
 	LOG_FILE=logs/test_hipack_perf_${DEVICE}_${THREAD}_W${w_bit}A${a_bit}_${i}.log
 	mkdir -p logs
 	echo "config: W${w_bit}A${a_bit}, save to: ${LOG_FILE}"
-	# ./${HIPACK_EXE} ${N} $((C)) $((H/2)) $((W/2)) $((C*2)) ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
-	./${HIPACK_EXE} 32 32 160 160 32 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 64 80 80 64 ${w_bit} ${a_bit} 0 0   | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 128 40 40 128 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 256 20 20 256 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
+	# ./${HIPACK_EXE} ${N} $((C)) $((H/2)) $((W/2)) $((C*2)) ${w_bit} ${a_bit} 0 0  | tee -a -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 32 160 160 32 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 64 80 80 64 ${w_bit} ${a_bit} 0 0   | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 128 40 40 128 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 256 20 20 256 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
 done

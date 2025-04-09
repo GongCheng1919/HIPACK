@@ -20,20 +20,20 @@ for i in $(seq 1 5); do
 	mkdir -p logs
 
 	echo "config: W${w_bit}A${a_bit}, save to: ${LOG_FILE}"
-	# ./${HIPACK_EXE} ${N} $((Ci)) $((H/2)) $((W/2)) $((Co*2)) ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
-	./${HIPACK_EXE} 32 3 56 56 64 ${w_bit} ${a_bit} 0 0  | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 64 56 56 64 ${w_bit} ${a_bit} 0 0  | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 64 28 28 64 ${w_bit} ${a_bit} 0 0  | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 128 14 14 128 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 256 7 7 256 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 256 7 7 512 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 512 7 7 512 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 768 7 7 512 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 512 14 14 256 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 384 14 14 256 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 256 14 14 256 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 256 28 28 128 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 192 28 28 128 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 128 28 28 128 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
-	./${HIPACK_EXE} 32 128 56 56 64 ${w_bit} ${a_bit} 0 0 | tee ${LOG_FILE}
+	# ./${HIPACK_EXE} ${N} $((Ci)) $((H/2)) $((W/2)) $((Co*2)) ${w_bit} ${a_bit} 0 0  | tee -a -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 3 56 56 64 ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 64 56 56 64 ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 64 28 28 64 ${w_bit} ${a_bit} 0 0  | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 128 14 14 128 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 256 7 7 256 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 256 7 7 512 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 512 7 7 512 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 768 7 7 512 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 512 14 14 256 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 384 14 14 256 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 256 14 14 256 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 256 28 28 128 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 192 28 28 128 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 128 28 28 128 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
+	./${HIPACK_EXE} 32 128 56 56 64 ${w_bit} ${a_bit} 0 0 | tee -a ${LOG_FILE}
 done
