@@ -21,7 +21,7 @@ class DirectConv2D(nn.Module):
         self.A_bits = A_bits
     def forward(self, x):
         x = torch.clip(x.int(),0,2**self.A_bits-1)
-        return direct_conv2d(x, self.weight.int(), self.W_bits,self.A_bits, 1, 1, 0, 0)
+        return direct_conv2d(x, self.weight.int(), self.W_bits,self.A_bits, 1, 1, 1, 0)
     
 if __name__ == '__main__':
     import argparse
