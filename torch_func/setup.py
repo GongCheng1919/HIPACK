@@ -79,7 +79,7 @@ class CustomBuildExtension(cpp_extension.BuildExtension):
         # 自定义编译选项
         for extension in self.extensions:
             extension.extra_compile_args = ['-fopenmp', '-march=native', 
-							  '-fconcepts-ts', '-std=c++17', '-Ofast']  # 示例：只使用这些选项
+							  '-fconcepts-ts', '-std=c++17', '-Ofast', '-fstrict-overflow']  # 示例：只使用这些选项
             # 根据需要添加或删除特定的编译选项
             # 例如，移除'-g'和'-fwrapv'
             new_compile_args = [arg for arg in extension.extra_compile_args if arg not in ['-g', '-fwrapv',"-O2", "-pthread", "-Wno-unused-result", "-Wsign-compare"]]
@@ -104,7 +104,7 @@ setup(name='direct_conv2d',
       ext_modules=[cpp_extension.CppExtension(
           'direct_conv2d', ['./directconv2d.cpp'],
           extra_compile_args=['-fopenmp', '-march=native', "-DENABLE_OPENMP",
-							  '-fconcepts-ts', '-std=c++17', '-Ofast',
+							  '-fconcepts-ts', '-std=c++17', '-Ofast', '-fstrict-overflow',
 							  f'-I/usr/include/{machine_name}-linux-gnu/', 
                               f"{direct_conv2d_path}"],
           extra_link_args=['-lgomp','-lcpuinfo', 
