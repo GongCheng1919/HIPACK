@@ -32,7 +32,9 @@ class CustomBuildExtension(cpp_extension.BuildExtension):
                 '-march=native',
                 '-fconcepts-ts', 
                 '-std=c++17', 
-                '-Ofast'
+                '-Ofast',
+                "-D_GLIBCXX_PARALLEL",
+                '-funroll-loops',
             ]
             
             # Remove unwanted flags
@@ -120,10 +122,11 @@ def main():
     
     # Define compilation and linking arguments
     compile_args = [
-        '-g',
         '-fopenmp', 
         '-march=native', 
         "-DENABLE_OPENMP",
+        "-D_GLIBCXX_PARALLEL",
+        '-funroll-loops',
         '-fconcepts-ts', 
         '-std=c++17', 
         '-Ofast',
