@@ -1,4 +1,4 @@
-# HIPACK
+# HiPACK: Efficient Sub-8-Bit Direct Convolution with SIMD and Bitwise Management
 
 **HIPACK** is an efficient sub-8-bit direct convolution acceleration library to maximize the performance of quantized NN execution on Arm processors.
 
@@ -204,3 +204,16 @@ Qint8 time: 6.0597 s
 HIPACK-W3A3 time: 5.3619 s
 ```
 * The Pytorch function call cause some performance degradation.
+
+## Citation
+```
+@inproceedings{hipack2025micro,
+  author={Yao, Chen and Cheng, Gong and Bingsheng, He},
+  booktitle={IEEE/ACM International Symposium on Microarchitecture (MICRO)}, 
+  title={HiPACK: Efficient Sub-8-Bit Direct Convolution with SIMD and Bitwise Management}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={},
+}
+```
